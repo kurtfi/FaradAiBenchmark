@@ -1,0 +1,26 @@
+# Data Storage (Raw and Processed Datasets)
+data/raw/
+data/processed/
+*.parquet
+
+# Python Environment and Caches
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# IDE and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment & Secrets
+.env
+.env.local

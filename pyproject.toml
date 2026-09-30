@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "faraday-laya-guard"
+version = "0.1.0"
+description = "Model-Agnostic MCP & Agent Security Benchmark Pipeline and Guardrail"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "duckdb>=1.1.0",
+    "pyarrow>=15.0.0",
+    "requests>=2.31.0",
+    "rich>=13.7.0",
+    "tqdm>=4.66.0",
+    "pydantic>=2.6.0",
+    "fastmcp>=3.2.0",
+    "mcp>=1.27.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.2.0",
+]
+
+[tool.setuptools]
+py-modules = ["benchmark_hf_guard", "laya_security_guard_mcp"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+python_files = ["test_*.py"]
