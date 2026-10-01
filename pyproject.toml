@@ -17,6 +17,7 @@ dependencies = [
     "pydantic>=2.6.0",
     "fastmcp>=3.2.0",
     "mcp>=1.27.0",
+    "laya-mlx>=0.2.0",
 ]
 
 [project.optional-dependencies]

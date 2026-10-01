@@ -1,6 +1,9 @@
 import json
 from typing import Dict, Any
-from mcp.server.fastmcp import FastMCP
+try:
+    from fastmcp import FastMCP
+except ImportError:
+    from mcp.server.fastmcp import FastMCP
 import laya_mlx
 
 mcp = FastMCP("Laya-OWASP-Agent-Guard")
