@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faraday Laya Guard — Security Benchmark Dashboard</title>
+    <meta name="description" content="Model-agnostic security benchmark dashboard for LLM/MCP DLP testing with real-time evaluation monitoring.">
+    <link rel="stylesheet" href="/static/index.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🛡️</text></svg>">
+</head>
+<body>
+
+<!-- ═══════════════ Header ═══════════════ -->
+<header class="header">
+    <a href="/" class="logo">
+        <div class="logo-icon">🛡️</div>
+        <div class="logo-text">Faraday <span>Laya Guard</span></div>
+    </a>
+
+    <nav class="nav">
+        <button class="nav-btn active" data-page="dashboard">Dashboard</button>
+        <button class="nav-btn" data-page="history">History</button>
+    </nav>
+
+    <div class="connection-badge">
+        <div class="connection-dot" id="connection-dot"></div>
+        <span id="connection-text">Connecting...</span>
+    </div>
+</header>
+
+<!-- ═══════════════ Toast Container ═══════════════ -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ═══════════════ Main Content ═══════════════ -->
+<main class="main">
+
+    <!-- ─── Dashboard Page ─────────────────────────────────── -->
+    <div class="page active" id="page-dashboard">
+
+        <div class="dashboard-grid">
+
+            <!-- LEFT: New Run Form -->
+            <div class="card">
+                <div class="card-title"><span class="icon">🚀</span> New Benchmark Run</div>
+
+                <div class="form-group">
+                    <label class="form-label" for="dataset-select">Dataset</label>
+                    <select class="form-select" id="dataset-select">
+                        <option value="">Loading datasets...</option>
+                    </select>
+                    <div class="form-hint" id="dataset-hint"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="model-select">Model Adapter</label>
+                    <select class="form-select" id="model-select">
+                        <option value="">Loading models...</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" id="btn-start">
+                    🚀 Start Benchmark
+                </button>
+
+                <!-- Confusion Matrix -->
+                <div style="margin-top: var(--space-6);">
+                    <div class="card-title"><span class="icon">📊</span> Confusion Matrix</div>
+                    <div class="confusion-grid">
+                        <div class="confusion-cell tp">
+                            <div class="confusion-value" id="cm-tp">—</div>
+                            <div class="confusion-label">True Positive</div>
+                        </div>
+                        <div class="confusion-cell fp">
+                            <div class="confusion-value" id="cm-fp">—</div>
+                            <div class="confusion-label">False Positive</div>
+                        </div>
+                        <div class="confusion-cell fn">
+                            <div class="confusion-value" id="cm-fn">—</div>
+                            <div class="confusion-label">False Negative</div>
+                        </div>
+                        <div class="confusion-cell tn">
+                            <div class="confusion-value" id="cm-tn">—</div>
+                            <div class="confusion-label">True Negative</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CENTER: Live Progress -->
+            <div class="card">
+                <div class="card-title"><span class="icon">⚡</span> Live Progress</div>
+
+                <!-- Idle State -->
+                <div class="idle-state" id="idle-state">
+                    <div class="idle-icon">🔬</div>
+                    <p>Benchmark başlatmak için sol panelden<br>dataset ve model seçin</p>
+                </div>
+
+                <!-- Progress Ring (hidden initially) -->
+                <div class="progress-section" id="progress-section" style="display: none;">
+                    <div class="progress-ring-container">
+                        <svg class="progress-ring" viewBox="0 0 200 200">
+                            <defs>
+                                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#3b82f6" />
+                                    <stop offset="50%" stop-color="#06b6d4" />
+                                    <stop offset="100%" stop-color="#8b5cf6" />
+                                </linearGradient>
+                            </defs>
+                            <circle class="progress-ring-bg" cx="100" cy="100" r="90" />
+                            <circle class="progress-ring-fill" id="progress-ring-fill" cx="100" cy="100" r="90" />
+                        </svg>
+                        <div class="progress-center-text">
+                            <div class="progress-pct" id="progress-pct">0%</div>
+                            <div class="progress-label">tamamlandı</div>
+                        </div>
+                    </div>
+
+                    <div class="progress-stats">
+                        <div>
+                            <div class="progress-stat-value" id="progress-evaluated">0/0</div>
+                            <div class="progress-stat-label">evaluated</div>
+                        </div>
+                        <div>
+                            <div class="progress-stat-value" id="progress-throughput">0</div>
+                            <div class="progress-stat-label">cases/sec</div>
+                        </div>
+                        <div>
+                            <div class="progress-stat-value" id="progress-elapsed">0s</div>
+                            <div class="progress-stat-label">elapsed</div>
+                        </div>
+                    </div>
+
+                    <div id="progress-complete-actions" style="display: none; margin-top: var(--space-4); width: 100%;">
+                        <button class="btn btn-primary" id="btn-view-last-run" style="width: 100%; padding: var(--space-3); font-size: 0.9rem;">
+                            🔍 Detaylı Sonuçları & Test Verilerini Gör
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Live Metrics -->
+            <div class="card">
+                <div class="card-title"><span class="icon">📈</span> Metrics</div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Accuracy</div>
+                        <div class="metric-value neutral" id="metric-accuracy">—</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Precision</div>
+                        <div class="metric-value neutral" id="metric-precision">—</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Recall</div>
+                        <div class="metric-value neutral" id="metric-recall">—</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">F1 Score</div>
+                        <div class="metric-value neutral" id="metric-f1">—</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">FPR</div>
+                        <div class="metric-value neutral" id="metric-fpr">—</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Avg Latency</div>
+                        <div class="metric-value info" id="metric-latency">—</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Runs Table -->
+        <div class="card history-section">
+            <div class="card-title"><span class="icon">📋</span> Recent Runs</div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Run ID</th>
+                            <th>Dataset</th>
+                            <th>Model</th>
+                            <th>Cases</th>
+                            <th>Accuracy</th>
+                            <th>F1</th>
+                            <th>Latency</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="runs-tbody">
+                        <tr><td colspan="9" class="empty-state">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── History Page ────────────────────────────────────── -->
+    <div class="page" id="page-history">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">📜 Benchmark History</h1>
+                <p class="page-subtitle">Tüm benchmark çalıştırma kayıtları</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Run ID</th>
+                            <th>Dataset</th>
+                            <th>Model</th>
+                            <th>Cases</th>
+                            <th>Accuracy</th>
+                            <th>F1</th>
+                            <th>Latency</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-tbody">
+                        <tr><td colspan="9" class="empty-state">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<!-- ═══════════════ Run Detail Modal ═══════════════ -->
+<div class="modal-overlay" id="run-detail-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <div>
+                <div class="modal-title" id="modal-run-id">—</div>
+                <div class="text-sm text-muted" id="modal-dataset">—</div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="modal-status"></span>
+                <button class="modal-close" onclick="closeModal()">✕</button>
+            </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="modal-metrics" id="modal-metrics"></div>
+
+        <!-- Confusion Matrix -->
+        <div class="modal-section">
+            <div class="modal-section-title">Confusion Matrix</div>
+            <div class="confusion-grid">
+                <div class="confusion-cell tp">
+                    <div class="confusion-value" id="modal-tp">—</div>
+                    <div class="confusion-label">True Positive</div>
+                </div>
+                <div class="confusion-cell fp">
+                    <div class="confusion-value" id="modal-fp">—</div>
+                    <div class="confusion-label">False Positive</div>
+                </div>
+                <div class="confusion-cell fn">
+                    <div class="confusion-value" id="modal-fn">—</div>
+                    <div class="confusion-label">False Negative</div>
+                </div>
+                <div class="confusion-cell tn">
+                    <div class="confusion-value" id="modal-tn">—</div>
+                    <div class="confusion-label">True Negative</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Breakdown -->
+        <div class="modal-section">
+            <div class="modal-section-title">Category Breakdown (Accuracy)</div>
+            <div id="modal-categories"></div>
+        </div>
+
+
+        <!-- Case Results -->
+        <div class="modal-section" id="modal-cases-section" style="display: none;">
+            <div class="case-header-row">
+                <div class="modal-section-title" style="margin-bottom: 0;">
+                    Test Case Results
+                    <span class="text-muted text-sm" style="font-weight:400; text-transform:none; letter-spacing:0;">— satıra tıklayarak payload detayını görün</span>
+                </div>
+                <div class="case-search-wrapper">
+                    <input type="text" id="case-search-input" class="case-search-input" placeholder="🔍 Case ID, tool veya domain ara..." oninput="handleCaseSearch(this.value)" />
+                </div>
+            </div>
+
+            <!-- Filter Buttons -->
+            <div class="case-filters">
+                <button class="case-filter-chip active" data-filter="all" onclick="filterCasesBy('all')">Tümü (<span id="count-all">0</span>)</button>
+                <button class="case-filter-chip filter-error" data-filter="mismatch" onclick="filterCasesBy('mismatch')">❌ Hatalar (<span id="count-mismatch">0</span>)</button>
+                <button class="case-filter-chip filter-fp" data-filter="fp" onclick="filterCasesBy('fp')">⚠️ False Positive (<span id="count-fp">0</span>)</button>
+                <button class="case-filter-chip filter-fn" data-filter="fn" onclick="filterCasesBy('fn')">⚠️ False Negative (<span id="count-fn">0</span>)</button>
+                <button class="case-filter-chip filter-correct" data-filter="correct" onclick="filterCasesBy('correct')">✓ Doğru (<span id="count-correct">0</span>)</button>
+            </div>
+
+            <div class="table-container" style="max-height: 340px; overflow-y: auto;">
+                <table class="case-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Case ID</th>
+                            <th>Domain</th>
+                            <th>Tool</th>
+                            <th>Expected</th>
+                            <th>Predicted</th>
+                            <th>Latency</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-cases-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ Case Detail Drawer ═══════════════ -->
+<div class="case-detail-drawer" id="case-detail-drawer"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

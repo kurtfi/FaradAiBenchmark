@@ -7,12 +7,12 @@ Downloads git repositories using shallow clones (--depth 1), cleans up .git meta
 and downloads HuggingFace/web raw resources into data/raw/.
 """
 
-import os
+import argparse
 import shutil
 import subprocess
-import argparse
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
+
 from rich.console import Console
 from rich.table import Table
 
@@ -22,7 +22,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw"
 
 # Registry of 15 security and benchmark datasets
-DATASET_REGISTRY: Dict[str, Dict[str, Any]] = {
+DATASET_REGISTRY: dict[str, dict[str, Any]] = {
     "seclists": {
         "name": "SecLists (Command Injection & SSRF)",
         "type": "git",
@@ -96,7 +96,7 @@ DATASET_REGISTRY: Dict[str, Dict[str, Any]] = {
 }
 
 
-def download_git_dataset(key: str, info: Dict[str, Any], force: bool = False) -> bool:
+def download_git_dataset(key: str, info: dict[str, Any], force: bool = False) -> bool:
     target_path = RAW_DATA_DIR / info["target_dir"]
     
     if target_path.exists():
@@ -122,7 +122,7 @@ def download_git_dataset(key: str, info: Dict[str, Any], force: bool = False) ->
         console.print(f"[bold red]❌ Failed to clone {info['name']}: {e.stderr}[/bold red]")
         return False
     except Exception as e:
-        console.print(f"[bold red]❌ Unexpected error downloading {info['name']}: {str(e)}[/bold red]")
+        console.print(f"[bold red]❌ Unexpected error downloading {info['name']}: {e!s}[/bold red]")
         return False
 
 

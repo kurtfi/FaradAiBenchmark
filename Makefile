@@ -1,21 +1,31 @@
-.PHONY: help setup download-all download transform-all transform sample test-smoke test-full test-unit clean
+.PHONY: help setup download-all download transform-all transform sample test-smoke test-full test-unit web clean
 
 PYTHON := .venv/bin/python
 UV := uv
 
 help:
-	@echo "=========================================================="
-	@echo " Faraday Laya Guard: Security Benchmark Pipeline Commands"
-	@echo "=========================================================="
-	@echo "  make setup            Initialize venv and install dependencies"
-	@echo "  make download-all     Download all benchmark datasets"
-	@echo "  make download SOURCE=<key>  Download specific dataset (e.g. SOURCE=seclists)"
-	@echo "  make transform-all    Transform raw data into Parquet files"
-	@echo "  make sample SIZE=2000 Generate balanced sample Parquet"
-	@echo "  make test-smoke       Run benchmark against smoke_test_2k.parquet"
-	@echo "  make test-full        Run benchmark against master_benchmark.parquet"
-	@echo "  make test-unit        Run unit tests"
-	@echo "  make clean            Clean cache and temporary files"
+	@echo "════════════════════════════════════════════════════════════"
+	@echo " 🛡️  Faraday Laya Guard: Security Benchmark Pipeline"
+	@echo "════════════════════════════════════════════════════════════"
+	@echo ""
+	@echo "  Setup & Data:"
+	@echo "    make setup              Initialize venv and install dependencies"
+	@echo "    make download-all       Download all benchmark datasets"
+	@echo "    make download SOURCE=x  Download specific dataset (e.g. SOURCE=seclists)"
+	@echo "    make transform-all      Transform raw data into Parquet files"
+	@echo "    make sample SIZE=2000   Generate balanced sample Parquet"
+	@echo ""
+	@echo "  Benchmark:"
+	@echo "    make test-smoke         Run benchmark against smoke_test_2k.parquet"
+	@echo "    make test-full          Run benchmark against master_benchmark.parquet"
+	@echo "    make test-unit          Run unit tests"
+	@echo ""
+	@echo "  Dashboard:"
+	@echo "    make web                Launch web dashboard on http://localhost:8765"
+	@echo "    make web PORT=9000      Launch on custom port"
+	@echo ""
+	@echo "  Maintenance:"
+	@echo "    make clean              Clean cache and temporary files"
 
 setup:
 	$(UV) venv
@@ -45,6 +55,10 @@ test-full:
 
 test-unit:
 	.venv/bin/pytest -v tests/
+
+web:
+	@echo "🛡️  Faraday Laya Guard Dashboard → http://localhost:$(if $(PORT),$(PORT),8765)"
+	$(PYTHON) -m uvicorn web.app:app --host 0.0.0.0 --port $(if $(PORT),$(PORT),8765) --reload
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

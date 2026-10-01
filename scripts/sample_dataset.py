@@ -9,6 +9,7 @@ with zero-copy in-memory SQL execution.
 
 import argparse
 from pathlib import Path
+
 import duckdb
 from rich.console import Console
 from rich.table import Table
@@ -29,23 +30,25 @@ def inspect_distribution():
     query = f"""
         SELECT 
             threat_domain,
+            analysis_tier,
             cwe,
             is_malicious,
             COUNT(*) as record_count
         FROM '{MASTER_PARQUET}'
-        GROUP BY threat_domain, cwe, is_malicious
-        ORDER BY threat_domain, is_malicious DESC
+        GROUP BY threat_domain, analysis_tier, cwe, is_malicious
+        ORDER BY threat_domain, analysis_tier, is_malicious DESC
     """
     rows = con.execute(query).fetchall()
     
     table = Table(title="Master Benchmark Dataset Distribution (DuckDB Analysis)")
     table.add_column("Threat Domain", style="cyan")
+    table.add_column("Analysis Tier", style="blue")
     table.add_column("CWE", style="magenta")
     table.add_column("Is Malicious", style="yellow")
     table.add_column("Count", style="green")
 
-    for domain, cwe, is_mal, count in rows:
-        table.add_row(str(domain), str(cwe), str(is_mal), str(count))
+    for domain, tier, cwe, is_mal, count in rows:
+        table.add_row(str(domain), str(tier), str(cwe), str(is_mal), str(count))
     
     console.print(table)
 
@@ -66,12 +69,14 @@ def create_sample(sample_size: int, output_file: str, balanced: bool = True):
                 WITH malicious AS (
                     SELECT * FROM '{MASTER_PARQUET}'
                     WHERE is_malicious = true
-                    USING SAMPLE reservoir({half} ROWS)
+                    ORDER BY random()
+                    LIMIT {half}
                 ),
                 benign AS (
                     SELECT * FROM '{MASTER_PARQUET}'
                     WHERE is_malicious = false
-                    USING SAMPLE reservoir({half} ROWS)
+                    ORDER BY random()
+                    LIMIT {half}
                 )
                 SELECT * FROM malicious
                 UNION ALL
@@ -82,7 +87,8 @@ def create_sample(sample_size: int, output_file: str, balanced: bool = True):
         sql = f"""
             COPY (
                 SELECT * FROM '{MASTER_PARQUET}'
-                USING SAMPLE reservoir({sample_size} ROWS)
+                ORDER BY random()
+                LIMIT {sample_size}
             ) TO '{out_path}' (FORMAT PARQUET, COMPRESSION 'SNAPPY')
         """
 
