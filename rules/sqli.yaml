@@ -1,0 +1,43 @@
+version: "1.0"
+category: "SQLI"
+description: "Rules detecting SQL injection patterns, boolean tautologies, UNION extractions, and destructive query stacking."
+rules:
+  - id: "SQLI-BOOLEAN-TAUTOLOGY"
+    name: "Classic Boolean Tautology"
+    threat_domain: "SQLI"
+    cwe: "CWE-89"
+    severity: "HIGH"
+    regex: '(?i)\b(?:OR|AND)\s+[''"]?1[''"]?\s*=\s*[''"]?1[''"]?|\bOR\s+\d+=\d+\b|''\s*OR\s*''\w+''\s*=\s*''\w+'
+    description: "Detects classic OR 1=1 or tautological authentication and filtering bypasses."
+
+  - id: "SQLI-COMMENT-TERMINATION"
+    name: "SQL Comment Termination"
+    threat_domain: "SQLI"
+    cwe: "CWE-89"
+    severity: "MEDIUM"
+    regex: '(?i)(?:--\s*$|/\*.*?\*/|#\s*$|;--)'
+    description: "Detects inline SQL comments used to neutralize trailing query constraints."
+
+  - id: "SQLI-UNION-SELECT"
+    name: "UNION-Based Data Extraction"
+    threat_domain: "SQLI"
+    cwe: "CWE-89"
+    severity: "CRITICAL"
+    regex: '(?i)\bUNION\s+(?:ALL\s+)?SELECT\b'
+    description: "Detects UNION SELECT queries attempting unauthorized multi-table data extraction."
+
+  - id: "SQLI-STACKED-DESTRUCTIVE"
+    name: "Stacked Destructive SQL Statements"
+    threat_domain: "SQLI"
+    cwe: "CWE-89"
+    severity: "CRITICAL"
+    regex: '(?i);\s*(?:DROP\s+TABLE|DELETE\s+FROM|TRUNCATE\s+TABLE|ALTER\s+TABLE|UPDATE\s+\w+\s+SET)\b'
+    description: "Detects query terminators followed by destructive administrative SQL commands."
+
+  - id: "SQLI-SCHEMA-METADATA"
+    name: "Database Schema Metadata Harvesting"
+    threat_domain: "SQLI"
+    cwe: "CWE-89"
+    severity: "HIGH"
+    regex: '(?i)\bFROM\s+(?:information_schema\.|sys\.tables|sqlite_master|pg_catalog\.)\b'
+    description: "Detects queries interrogating database engine schema tables for reconnaissance."

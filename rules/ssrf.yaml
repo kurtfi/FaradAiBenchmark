@@ -1,0 +1,27 @@
+version: "1.0"
+category: "SSRF"
+description: "Rules detecting Server-Side Request Forgery against cloud instance metadata services and private internal networks."
+rules:
+  - id: "SSRF-CLOUD-METADATA"
+    name: "Cloud Instance Metadata Service (IMDS)"
+    threat_domain: "SSRF"
+    cwe: "CWE-918"
+    severity: "CRITICAL"
+    regex: '(?i)\b(?:169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200|instance-data)\b'
+    description: "Detects direct access to AWS, GCP, Azure, or Alibaba Cloud instance metadata endpoints."
+
+  - id: "SSRF-LOOPBACK-PRIVATE"
+    name: "Localhost or Loopback Probing"
+    threat_domain: "SSRF"
+    cwe: "CWE-918"
+    severity: "HIGH"
+    regex: '(?i)\b(?:127\.0\.0\.1|localhost|0\.0\.0\.0|\[::1\])(?::\d+)?\b'
+    description: "Detects attempts to access loopback addresses and local service ports."
+
+  - id: "SSRF-DANGEROUS-SCHEMES"
+    name: "Dangerous URI Scheme"
+    threat_domain: "SSRF"
+    cwe: "CWE-918"
+    severity: "CRITICAL"
+    regex: '(?i)\b(?:gopher|file|dict|ldap|tftp):\/\/'
+    description: "Detects non-HTTP protocols commonly exploited in SSRF attacks."

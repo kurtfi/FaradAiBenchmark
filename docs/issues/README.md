@@ -5,8 +5,8 @@ Spesifikasyon [SPEC-0002](../specs/hybrid-guard-and-discrepancy-benchmark-spec.m
 | Issue ID | Başlık | Engellenen (Blocked by) | Durum |
 | :--- | :--- | :--- | :--- |
 | **[ISSUE-001](./ISSUE-001-analysis-tier-schema-and-dataset-normalization.md)** | Analysis Tier Şeması ve Gerçek DLP/Gizlilik Veri Normalizasyonu | *None (Hemen başlanabilir)* | ✅ Done |
-| **[ISSUE-002](./ISSUE-002-declarative-l1-static-rule-engine-and-adapter.md)** | Bildirimsel L1 Statik Kural Motoru ve Bağımsız Benchmark Adaptörü | [ISSUE-001](./ISSUE-001-analysis-tier-schema-and-dataset-normalization.md) | 🟡 Ready |
-| **[ISSUE-003](./ISSUE-003-fail-fast-cascade-hybrid-engine.md)** | Kademeli Fail-Fast Hibrit Güvenlik Motoru (HybridCascadeAdapter) | [ISSUE-002](./ISSUE-002-declarative-l1-static-rule-engine-and-adapter.md) | ⚪ Blocked |
+| **[ISSUE-002](./ISSUE-002-declarative-l1-static-rule-engine-and-adapter.md)** | Bildirimsel L1 Statik Kural Motoru ve Bağımsız Benchmark Adaptörü | [ISSUE-001](./ISSUE-001-analysis-tier-schema-and-dataset-normalization.md) | ✅ Done |
+| **[ISSUE-003](./ISSUE-003-fail-fast-cascade-hybrid-engine.md)** | Kademeli Fail-Fast Hibrit Güvenlik Motoru (HybridCascadeAdapter) | [ISSUE-002](./ISSUE-002-declarative-l1-static-rule-engine-and-adapter.md) | 🟡 Ready |
 | **[ISSUE-004](./ISSUE-004-scalable-duckdb-relational-storage.md)** | 10.000+ Ölçekli DuckDB İlişkisel Depolama (run_case_evaluations) | [ISSUE-003](./ISSUE-003-fail-fast-cascade-hybrid-engine.md) | ⚪ Blocked |
 | **[ISSUE-005](./ISSUE-005-discrepancy-api-and-compare-runs-ui.md)** | Uyuşmazlık (Discrepancy) API'si ve Web UI "Compare Runs" Görünümü | [ISSUE-004](./ISSUE-004-scalable-duckdb-relational-storage.md) | ⚪ Blocked |
 

@@ -1,0 +1,59 @@
+version: "1.0"
+category: "COMMAND_INJECTION"
+description: "Rules detecting shell command chaining, operator injection, command substitution, and dangerous execution utilities."
+rules:
+  - id: "CMD-CHAINING-PIPE"
+    name: "Shell Chaining or Pipe Injection"
+    threat_domain: "COMMAND_INJECTION"
+    cwe: "CWE-78"
+    severity: "CRITICAL"
+    regex: '(?i)(?:[;&|`$]|\$\()\s*(?:cat|rm|nc|curl|wget|bash|sh|whoami|id|echo|chmod|chown|kill|pkill|uname|hostname|perl|python|ruby)\b'
+    description: "Detects command separator or pipe followed immediately by a Unix shell binary or utility."
+
+  - id: "CMD-SUBSTITUTION"
+    name: "Command Substitution Syntax"
+    threat_domain: "COMMAND_INJECTION"
+    cwe: "CWE-78"
+    severity: "HIGH"
+    regex: '(?:\`[^`]{2,}\`|\$\([^)]+\))'
+    description: "Detects backtick execution or $(...) POSIX command substitution."
+
+  - id: "CMD-REVERSE-SHELL"
+    name: "Reverse Shell or Netcat Spawn"
+    threat_domain: "COMMAND_INJECTION"
+    cwe: "CWE-78"
+    severity: "CRITICAL"
+    regex: '(?i)\b(?:nc(?:\.traditional)?\s+-[el]|/bin/(?:bash|sh)\s+-i|bash\s+-i\s*>&|sh\s+-i\s*>&)\b'
+    description: "Detects interactive reverse shell or netcat remote shell listener triggers."
+
+  - id: "CMD-DESTRUCTIVE-RM"
+    name: "Destructive File Deletion"
+    threat_domain: "COMMAND_INJECTION"
+    cwe: "CWE-78"
+    severity: "CRITICAL"
+    regex: '(?i)\brm\s+-(?:[a-zA-Z]*r[a-zA-Z]*f|[a-zA-Z]*f[a-zA-Z]*r)\s+[/~*]'
+    description: "Detects rm -rf against root, home directory, or wildcards."
+
+  - id: "CMD-SENSITIVE-CAT"
+    name: "Sensitive System File Reading via Shell"
+    threat_domain: "COMMAND_INJECTION"
+    cwe: "CWE-78"
+    severity: "HIGH"
+    regex: '(?i)\b(?:cat|head|tail|more|less|grep)\s+/(?:etc/(?:passwd|shadow|hosts|group)|proc/self/environ)'
+    description: "Detects shell commands reading Unix credential or environment files."
+
+  - id: "CMD-PIPE-TO-SHELL"
+    name: "Remote Execution Pipeline to Shell"
+    threat_domain: "COMMAND_INJECTION"
+    cwe: "CWE-78"
+    severity: "CRITICAL"
+    regex: '(?i)\|\s*(?:/bin/)?(?:ba)?sh\b'
+    description: "Detects piped output directly executed by /bin/sh or bash."
+
+  - id: "CMD-WINDOWS-SHELL"
+    name: "Windows Command Injection"
+    threat_domain: "COMMAND_INJECTION"
+    cwe: "CWE-78"
+    severity: "HIGH"
+    regex: '(?i)(?:&|&&|\||\|\|)\s*(?:cmd(?:\.exe)?|powershell(?:\.exe)?|certutil|bitsadmin|type\s+[A-Za-z]:\\)\b'
+    description: "Detects Windows command interpreter and binary chaining."

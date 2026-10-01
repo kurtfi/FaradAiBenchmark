@@ -83,7 +83,8 @@ def get_available_models() -> List[Dict[str, str]]:
     """Return list of available model adapters."""
     models = [
         {"id": "laya-mlx", "name": "Laya MLX", "description": "Local Apple Silicon — Laya OWASP Guard", "icon": "🍎"},
-        {"id": "mock", "name": "Mock (Heuristic)", "description": "Rule-based pattern matcher for pipeline testing", "icon": "🧪"},
+        {"id": "l1-rules", "name": "L1 Static Rules", "description": "Declarative YAML Regex Engine (<0.2ms)", "icon": "⚡", "status": "available"},
+        {"id": "mock", "name": "Mock (Heuristic)", "description": "Rule-based pattern matcher for pipeline testing", "icon": "🧪", "status": "available"},
     ]
     # Check if laya_mlx is actually importable
     try:
@@ -93,7 +94,6 @@ def get_available_models() -> List[Dict[str, str]]:
         models[0]["status"] = "unavailable"
         models[0]["description"] += " (not installed)"
 
-    models[1]["status"] = "available"
     return models
 
 
@@ -170,17 +170,12 @@ async def execute_benchmark(run_id: str, dataset_path: str, model_name: str):
 
     await broadcast({"type": "run_started", "run_id": run_id, "total_cases": total})
 
-    # Initialize model adapter
-    adapter = None
-    if model_name == "laya-mlx":
-        try:
-            from benchmark_runner import LayaMLXAdapter
-            adapter = LayaMLXAdapter()
-        except Exception:
-            from benchmark_runner import MockSecurityAdapter
-            adapter = MockSecurityAdapter()
-    else:
-        from benchmark_runner import MockSecurityAdapter
+    # Initialize model adapter via registry
+    from benchmark_runner import ADAPTER_REGISTRY, MockSecurityAdapter
+    adapter_cls = ADAPTER_REGISTRY.get(model_name.lower(), MockSecurityAdapter)
+    try:
+        adapter = adapter_cls()
+    except Exception:
         adapter = MockSecurityAdapter()
 
     tp = fp = tn = fn = 0
