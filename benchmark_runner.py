@@ -29,6 +29,7 @@ from adapters.base import BaseModelAdapter
 from adapters.qwen_coder_adapter import QwenCoderAdapter
 from adapters.granite_guardian_adapter import GraniteGuardianAdapter
 from adapters.llama_guard_adapter import LlamaGuardAdapter
+from adapters.prompt_guard_adapter import PromptGuardAdapter
 from adapters.shield_gemma_adapter import ShieldGemmaAdapter
 
 
@@ -182,6 +183,7 @@ ADAPTER_REGISTRY: Dict[str, type] = {
     "qwen-coder": QwenCoderAdapter,
     "granite-guardian": GraniteGuardianAdapter,
     "llama-guard-3": LlamaGuardAdapter,
+    "prompt-guard": PromptGuardAdapter,
     "shield-gemma": ShieldGemmaAdapter,
     "mock": MockSecurityAdapter
 }
