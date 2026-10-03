@@ -12,13 +12,15 @@ import asyncio
 import json
 import time
 import uuid
+import math
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 import duckdb
 import pyarrow as pa
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -31,9 +33,14 @@ PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 DB_PATH = PROJECT_ROOT / "data" / "benchmark_runs.duckdb"
 WEB_DIR = Path(__file__).resolve().parent
 
-# ─── FastAPI App ─────────────────────────────────────────────────────────────
+# ─── FastAPI App with Modern Lifespan ────────────────────────────────────────
 
-app = FastAPI(title="Faraday Laya Guard", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+app = FastAPI(title="Faraday Laya Guard", version="1.0.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=WEB_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=WEB_DIR / "templates")
 
@@ -420,10 +427,6 @@ async def execute_benchmark(run_id: str, dataset_path: str, model_name: str, tie
 
 # ─── API Routes ──────────────────────────────────────────────────────────────
 
-@app.on_event("startup")
-async def startup():
-    init_db()
-
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
@@ -752,6 +755,170 @@ async def api_delete_run(run_id: str):
     return {"deleted": run_id}
 
 
+# ─── Test Cases Explorer Endpoints (ISSUE-006 / 007 / 008) ───────────────────
+
+MASTER_BENCHMARK_PATH = PROCESSED_DIR / "master_benchmark.parquet"
+
+TEST_CASE_COLUMNS: tuple[str, ...] = (
+    "id", "source_dataset", "threat_domain", "analysis_tier", "is_malicious",
+    "cwe", "owasp_llm", "traffic_direction", "tool_name", "tool_arguments", "context"
+)
+
+ALLOWED_SORT_COLUMNS: frozenset[str] = frozenset({
+    "id", "source_dataset", "threat_domain", "analysis_tier", "is_malicious", "tool_name"
+})
+
+
+def build_test_cases_filter(
+    dataset: Optional[str] = None,
+    threat_domain: Optional[str] = None,
+    tier: Optional[str] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+) -> tuple[str, list[Any]]:
+    """Construct SQL WHERE clause and parameterized values for test case querying (Clean Code / SRP)."""
+    where_clauses: list[str] = ["1=1"]
+    params: list[Any] = []
+
+    if dataset and dataset != "all":
+        where_clauses.append("source_dataset = ?")
+        params.append(dataset)
+
+    if threat_domain and threat_domain != "all":
+        where_clauses.append("threat_domain = ?")
+        params.append(threat_domain)
+
+    if tier and tier != "all":
+        where_clauses.append("analysis_tier = ?")
+        params.append(tier.upper())
+
+    if status == "safe":
+        where_clauses.append("is_malicious = FALSE")
+    elif status == "malicious":
+        where_clauses.append("is_malicious = TRUE")
+
+    if search and search.strip():
+        search_pattern = f"%{search.strip()}%"
+        where_clauses.append("(context ILIKE ? OR tool_arguments ILIKE ? OR id ILIKE ? OR cwe ILIKE ?)")
+        params.extend([search_pattern] * 4)
+
+    return " AND ".join(where_clauses), params
+
+
+@app.get("/api/test-cases/filters")
+async def api_get_test_case_filters() -> dict[str, Any]:
+    """Return distinct categories and case counts from master_benchmark.parquet."""
+    if not MASTER_BENCHMARK_PATH.exists():
+        raise HTTPException(status_code=404, detail="master_benchmark.parquet not found")
+
+    con = duckdb.connect(":memory:")
+    try:
+        parquet_str = str(MASTER_BENCHMARK_PATH)
+        total_pool_cases = con.execute(f'SELECT count(*) FROM "{parquet_str}"').fetchone()[0]
+
+        def _fetch_grouped_counts(col_name: str) -> list[dict[str, Any]]:
+            rows = con.execute(f'''
+                SELECT {col_name}, count(*) as cnt
+                FROM "{parquet_str}"
+                GROUP BY {col_name}
+                ORDER BY cnt DESC
+            ''').fetchall()
+            return [{"name": r[0], "count": r[1]} for r in rows if r[0]]
+
+        return {
+            "total_pool_cases": total_pool_cases,
+            "datasets": _fetch_grouped_counts("source_dataset"),
+            "threat_domains": _fetch_grouped_counts("threat_domain"),
+            "analysis_tiers": _fetch_grouped_counts("analysis_tier"),
+        }
+    finally:
+        con.close()
+
+
+@app.get("/api/test-cases")
+async def api_list_test_cases(
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(50, ge=1, le=100, description="Items per page"),
+    dataset: Optional[str] = None,
+    threat_domain: Optional[str] = None,
+    tier: Optional[str] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: str = Query("id", description="Column to sort by"),
+    sort_order: str = Query("asc", description="Sort order: asc or desc"),
+) -> dict[str, Any]:
+    """Query test cases directly from master_benchmark.parquet with server-side pagination."""
+    if not MASTER_BENCHMARK_PATH.exists():
+        raise HTTPException(status_code=404, detail="master_benchmark.parquet not found")
+
+    where_sql, params = build_test_cases_filter(dataset, threat_domain, tier, status, search)
+    safe_sort_col = sort_by if sort_by in ALLOWED_SORT_COLUMNS else "id"
+    safe_sort_dir = "DESC" if sort_order.lower() == "desc" else "ASC"
+    parquet_str = str(MASTER_BENCHMARK_PATH)
+
+    con = duckdb.connect(":memory:")
+    try:
+        # Count total matching records
+        count_query = f'SELECT count(*) FROM "{parquet_str}" WHERE {where_sql}'
+        total_records = con.execute(count_query, params).fetchone()[0]
+
+        total_pages = max(1, math.ceil(total_records / limit))
+        current_page = min(page, total_pages) if total_records > 0 else 1
+        offset = (current_page - 1) * limit
+
+        # Select paginated slice
+        columns_sql = ", ".join(TEST_CASE_COLUMNS)
+        select_query = f'''
+            SELECT {columns_sql}
+            FROM "{parquet_str}"
+            WHERE {where_sql}
+            ORDER BY {safe_sort_col} {safe_sort_dir}
+            LIMIT ? OFFSET ?
+        '''
+        query_params = list(params) + [limit, offset]
+        rows = con.execute(select_query, query_params).fetchall()
+        cases = [dict(zip(TEST_CASE_COLUMNS, r)) for r in rows]
+
+        return {
+            "cases": cases,
+            "pagination": {
+                "page": current_page,
+                "limit": limit,
+                "total_records": total_records,
+                "total_pages": total_pages,
+                "has_next": current_page < total_pages,
+                "has_prev": current_page > 1,
+            },
+        }
+    finally:
+        con.close()
+
+
+@app.get("/api/test-cases/{case_id}")
+async def api_get_test_case(case_id: str) -> dict[str, Any]:
+    """Retrieve a single test case by ID from master_benchmark.parquet."""
+    if not MASTER_BENCHMARK_PATH.exists():
+        raise HTTPException(status_code=404, detail="master_benchmark.parquet not found")
+
+    con = duckdb.connect(":memory:")
+    try:
+        parquet_str = str(MASTER_BENCHMARK_PATH)
+        columns_sql = ", ".join(TEST_CASE_COLUMNS)
+        row = con.execute(f'''
+            SELECT {columns_sql}
+            FROM "{parquet_str}"
+            WHERE id = ?
+            LIMIT 1
+        ''', [case_id]).fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Test case '{case_id}' not found")
+
+        return dict(zip(TEST_CASE_COLUMNS, row))
+    finally:
+        con.close()
+
+
 # ─── WebSocket ───────────────────────────────────────────────────────────────
 
 @app.websocket("/ws")
@@ -777,4 +944,4 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8765, reload=True)
+    uvicorn.run(app, host="127.0.0.1", port=8765)

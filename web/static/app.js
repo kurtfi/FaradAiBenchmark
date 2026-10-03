@@ -14,6 +14,25 @@ const state = {
     runs: [],
     reconnectAttempts: 0,
     maxReconnect: 10,
+    testCases: {
+        page: 1,
+        limit: 50,
+        dataset: 'all',
+        threat_domain: 'all',
+        tier: 'all',
+        status: 'all',
+        search: '',
+        sortBy: 'id',
+        sortOrder: 'asc',
+        searchDebounceTimer: null,
+        total: 0,
+        totalPages: 1,
+        cases: [],
+        filtersLoaded: false,
+        eventsBound: false,
+        activeCaseId: null,
+        activeCasePayload: null,
+    },
 };
 
 // ─── DOM Helpers ────────────────────────────────────────────────────────────
@@ -754,12 +773,22 @@ function showCaseDetail(idx) {
         </div>
     `;
 
+    const overlay = $('#drawer-overlay');
+    if (overlay) overlay.classList.add('active');
     detail.classList.add('open');
 }
 
-function closeCaseDetail() {
+function closeCaseDetail(updateHash = true) {
     const detail = $('#case-detail-drawer');
+    const overlay = $('#drawer-overlay');
     if (detail) detail.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
+    state.testCases.activeCaseId = null;
+    state.testCases.activeCasePayload = null;
+
+    if (updateHash && state.currentPage === 'test-cases') {
+        updateUrlHash(false);
+    }
 }
 
 function escapeHtml(text) {
@@ -1136,7 +1165,7 @@ function showDiscrepancyDetail(idx) {
 
 // ─── Navigation ─────────────────────────────────────────────────────────────
 
-function switchPage(page) {
+function activatePageUI(page) {
     state.currentPage = page;
     $$('.page').forEach(el => el.classList.remove('active'));
     $$('.nav-btn').forEach(el => el.classList.remove('active'));
@@ -1146,12 +1175,761 @@ function switchPage(page) {
 
     const navBtn = $(`.nav-btn[data-page="${page}"]`);
     if (navBtn) navBtn.classList.add('active');
+}
+
+function switchPage(page, updateHash = true) {
+    activatePageUI(page);
 
     if (page === 'history') {
         loadRuns();
     } else if (page === 'compare') {
         loadRuns().then(() => populateCompareSelects());
+    } else if (page === 'test-cases') {
+        initTestCasesPage();
     }
+
+    if (updateHash) {
+        updateUrlHash(state.currentPage === 'test-cases' && !!state.testCases.activeCaseId);
+    }
+}
+
+// ─── Test Cases Explorer (ISSUE-006 & ISSUE-007) ───────────────────────────
+
+async function initTestCasesPage() {
+    if (!state.testCases.filtersLoaded) {
+        await loadTestCaseFilters();
+    }
+    if (!state.testCases.eventsBound) {
+        bindTestCaseEvents();
+    }
+    syncTestCaseFilterControls();
+    await loadTestCases();
+}
+
+async function loadTestCaseFilters() {
+    try {
+        const res = await fetch('/api/test-cases/filters');
+        if (!res.ok) throw new Error('Failed to load test case filters');
+        const data = await res.json();
+
+        // Total cases
+        const totalEl = $('#tc-total-count');
+        if (totalEl) totalEl.textContent = data.total_pool_cases.toLocaleString();
+
+        // Populate datasets
+        const dsSelect = $('#tc-filter-dataset');
+        if (dsSelect) {
+            dsSelect.innerHTML = `<option value="all">All Datasets (${data.total_pool_cases.toLocaleString()})</option>`;
+            data.datasets.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.name;
+                opt.textContent = `${d.name} (${d.count.toLocaleString()})`;
+                dsSelect.appendChild(opt);
+            });
+            if (state.testCases.dataset) dsSelect.value = state.testCases.dataset;
+        }
+
+        // Populate domains
+        const domSelect = $('#tc-filter-domain');
+        if (domSelect) {
+            domSelect.innerHTML = '<option value="all">All Threat Domains</option>';
+            data.threat_domains.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.name;
+                opt.textContent = `${d.name} (${d.count.toLocaleString()})`;
+                domSelect.appendChild(opt);
+            });
+            if (state.testCases.threat_domain) domSelect.value = state.testCases.threat_domain;
+        }
+
+        state.testCases.filtersLoaded = true;
+    } catch (err) {
+        console.error('[TestCases] Error loading filters:', err);
+        showToast('Failed to load test case filters: ' + err.message, 'error');
+    }
+}
+
+async function loadTestCases(updateHash = true) {
+    const tbody = $('#tc-cases-tbody');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: var(--space-8); color: var(--text-tertiary);">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: var(--space-2);">
+                        <span class="inline-spinner" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2); border-top-color: var(--accent-indigo); border-radius: 50%; animation: spin 0.6s linear infinite;"></span>
+                        <span>Loading test scenarios from DuckDB...</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    const tc = state.testCases;
+    const params = new URLSearchParams({
+        page: tc.page,
+        limit: tc.limit,
+        sort_by: tc.sortBy || 'id',
+        sort_order: tc.sortOrder || 'asc',
+    });
+    if (tc.search && tc.search.trim()) params.set('search', tc.search.trim());
+    if (tc.dataset !== 'all') params.set('dataset', tc.dataset);
+    if (tc.threat_domain !== 'all') params.set('threat_domain', tc.threat_domain);
+    if (tc.tier !== 'all') params.set('tier', tc.tier);
+    if (tc.status !== 'all') params.set('status', tc.status);
+
+    try {
+        const res = await fetch(`/api/test-cases?${params.toString()}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        tc.cases = data.cases || [];
+        tc.total = data.pagination.total_records || 0;
+        tc.totalPages = data.pagination.total_pages || 1;
+        tc.page = data.pagination.page || 1;
+
+        renderTestCasesTable();
+        renderTestCasesPagination();
+        updateTestCaseSortHeaders();
+
+        const searchClear = $('#tc-search-clear');
+        if (searchClear) {
+            searchClear.style.display = tc.search ? 'block' : 'none';
+        }
+
+        if (updateHash) {
+            updateUrlHash(state.currentPage === 'test-cases' && !!state.testCases.activeCaseId);
+        }
+    } catch (err) {
+        console.error('[TestCases] Error loading cases:', err);
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: var(--space-8); color: var(--color-danger);">
+                        ❌ Failed to load test cases: ${escapeHtml(err.message)}
+                    </td>
+                </tr>
+            `;
+        }
+        showToast('Failed to load test cases: ' + err.message, 'error');
+    }
+}
+
+function renderTestCasesTable() {
+    const tbody = $('#tc-cases-tbody');
+    if (!tbody) return;
+
+    const filteredEl = $('#tc-filtered-count');
+    if (filteredEl) filteredEl.textContent = state.testCases.total.toLocaleString();
+
+    if (state.testCases.cases.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: var(--space-8);">
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: var(--space-3);">
+                        <span style="font-size: 2.2rem; opacity: 0.6;">🛡️</span>
+                        <div class="font-bold" style="color: var(--text-primary); font-size: 1rem;">No test cases found</div>
+                        <div class="text-sm text-muted">No test scenarios match the current filter selection.</div>
+                        <button class="btn btn-secondary btn-sm" onclick="resetTestCaseFilters()" style="margin-top: var(--space-2);">
+                            ✕ Clear Filters
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = state.testCases.cases.map(c => {
+        const statusBadge = c.is_malicious
+            ? '<span class="tc-status-badge tc-status-threat">🚨 Threat</span>'
+            : '<span class="tc-status-badge tc-status-safe">🛡️ Safe</span>';
+
+        let tierClass = 'tc-tier-static';
+        let tierLabel = '⚡ Static';
+        if (c.analysis_tier === 'SEMANTIC_REQUIRED') {
+            tierClass = 'tc-tier-semantic';
+            tierLabel = '🧠 Semantic';
+        } else if (c.analysis_tier === 'HYBRID') {
+            tierClass = 'tc-tier-hybrid';
+            tierLabel = '🔀 Hybrid';
+        }
+
+        const safeId = escapeHtml(c.id);
+        const safeDataset = escapeHtml(c.source_dataset || '—');
+        const safeDomain = escapeHtml(c.threat_domain || '—');
+        const safeTool = escapeHtml(c.tool_name || '—');
+
+        return `
+            <tr class="case-row" onclick="showTestCaseDetail('${safeId}')">
+                <td>
+                    <span class="mono font-bold" style="color: var(--accent-cyan); font-size: 0.82rem;">${safeId}</span>
+                </td>
+                <td>
+                    <span class="badge" style="background: rgba(255,255,255,0.06); font-size: 0.72rem; color: var(--text-secondary);">${safeDataset}</span>
+                </td>
+                <td>
+                    <span class="badge badge-domain">${safeDomain}</span>
+                </td>
+                <td>
+                    <span class="tc-tier-badge ${tierClass}">${tierLabel}</span>
+                </td>
+                <td>${statusBadge}</td>
+                <td>
+                    <span class="mono text-xs" style="color: var(--text-primary);">${safeTool}</span>
+                </td>
+                <td style="text-align: right;">
+                    <button class="btn btn-sm btn-secondary copy-payload-btn" style="padding: 2px 8px;" onclick="event.stopPropagation(); showTestCaseDetail('${safeId}')">
+                        👁️ View
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderTestCasesPagination() {
+    const tc = state.testCases;
+    const start = tc.total === 0 ? 0 : (tc.page - 1) * tc.limit + 1;
+    const end = Math.min(tc.total, tc.page * tc.limit);
+
+    setText('#tc-pagination-info', `Showing ${start.toLocaleString()} - ${end.toLocaleString()} of ${tc.total.toLocaleString()} cases`);
+    setText('#tc-current-page', tc.page);
+    setText('#tc-total-pages', tc.totalPages);
+
+    const btnFirst = $('#tc-page-first');
+    const btnPrev = $('#tc-page-prev');
+    const btnNext = $('#tc-page-next');
+    const btnLast = $('#tc-page-last');
+
+    if (btnFirst) btnFirst.disabled = tc.page <= 1;
+    if (btnPrev) btnPrev.disabled = tc.page <= 1;
+    if (btnNext) btnNext.disabled = tc.page >= tc.totalPages;
+    if (btnLast) btnLast.disabled = tc.page >= tc.totalPages;
+}
+
+function updateTestCaseSortHeaders() {
+    const tc = state.testCases;
+    const headers = $$('th.tc-sortable');
+    headers.forEach(th => {
+        const col = th.getAttribute('data-sort');
+        const icon = th.querySelector('.tc-sort-icon');
+        th.classList.remove('sorted-asc', 'sorted-desc');
+        if (col === tc.sortBy) {
+            if (tc.sortOrder === 'desc') {
+                th.classList.add('sorted-desc');
+                if (icon) icon.textContent = '▼';
+            } else {
+                th.classList.add('sorted-asc');
+                if (icon) icon.textContent = '▲';
+            }
+        } else {
+            if (icon) icon.textContent = '⇅';
+        }
+    });
+}
+
+function bindTestCaseEvents() {
+    const tc = state.testCases;
+
+    const searchInput = $('#tc-search-input');
+    const searchClear = $('#tc-search-clear');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const val = e.target.value;
+            tc.search = val;
+            if (searchClear) searchClear.style.display = val ? 'block' : 'none';
+
+            if (tc.searchDebounceTimer) clearTimeout(tc.searchDebounceTimer);
+            tc.searchDebounceTimer = setTimeout(() => {
+                tc.page = 1;
+                loadTestCases(true);
+            }, 300);
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                if (searchInput.value) {
+                    searchInput.value = '';
+                    tc.search = '';
+                    if (searchClear) searchClear.style.display = 'none';
+                    tc.page = 1;
+                    loadTestCases(true);
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (tc.searchDebounceTimer) clearTimeout(tc.searchDebounceTimer);
+                tc.page = 1;
+                loadTestCases(true);
+            }
+        });
+    }
+
+    if (searchClear) {
+        searchClear.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            tc.search = '';
+            searchClear.style.display = 'none';
+            tc.page = 1;
+            loadTestCases(true);
+            if (searchInput) searchInput.focus();
+        });
+    }
+
+    const sortHeaders = $$('th.tc-sortable');
+    sortHeaders.forEach(th => {
+        th.addEventListener('click', () => {
+            const col = th.getAttribute('data-sort');
+            if (!col) return;
+
+            if (tc.sortBy === col) {
+                tc.sortOrder = tc.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                tc.sortBy = col;
+                tc.sortOrder = 'asc';
+            }
+            tc.page = 1;
+            loadTestCases(true);
+        });
+    });
+
+    const dsSelect = $('#tc-filter-dataset');
+    if (dsSelect) {
+        dsSelect.addEventListener('change', () => {
+            tc.dataset = dsSelect.value;
+            tc.page = 1;
+            loadTestCases(true);
+        });
+    }
+
+    const domSelect = $('#tc-filter-domain');
+    if (domSelect) {
+        domSelect.addEventListener('change', () => {
+            tc.threat_domain = domSelect.value;
+            tc.page = 1;
+            loadTestCases(true);
+        });
+    }
+
+    const tierSelect = $('#tc-filter-tier');
+    if (tierSelect) {
+        tierSelect.addEventListener('change', () => {
+            tc.tier = tierSelect.value;
+            tc.page = 1;
+            loadTestCases(true);
+        });
+    }
+
+    const statusSelect = $('#tc-filter-status');
+    if (statusSelect) {
+        statusSelect.addEventListener('change', () => {
+            tc.status = statusSelect.value;
+            tc.page = 1;
+            loadTestCases(true);
+        });
+    }
+
+    const limitSelect = $('#tc-filter-limit');
+    if (limitSelect) {
+        limitSelect.addEventListener('change', () => {
+            tc.limit = parseInt(limitSelect.value, 10) || 50;
+            tc.page = 1;
+            loadTestCases(true);
+        });
+    }
+
+    const resetBtn = $('#tc-btn-reset');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetTestCaseFilters);
+    }
+
+    const btnFirst = $('#tc-page-first');
+    if (btnFirst) {
+        btnFirst.addEventListener('click', () => {
+            if (tc.page > 1) {
+                tc.page = 1;
+                loadTestCases(true);
+            }
+        });
+    }
+
+    const btnPrev = $('#tc-page-prev');
+    if (btnPrev) {
+        btnPrev.addEventListener('click', () => {
+            if (tc.page > 1) {
+                tc.page--;
+                loadTestCases(true);
+            }
+        });
+    }
+
+    const btnNext = $('#tc-page-next');
+    if (btnNext) {
+        btnNext.addEventListener('click', () => {
+            if (tc.page < tc.totalPages) {
+                tc.page++;
+                loadTestCases(true);
+            }
+        });
+    }
+
+    const btnLast = $('#tc-page-last');
+    if (btnLast) {
+        btnLast.addEventListener('click', () => {
+            if (tc.page < tc.totalPages) {
+                tc.page = tc.totalPages;
+                loadTestCases(true);
+            }
+        });
+    }
+
+    state.testCases.eventsBound = true;
+}
+
+function resetTestCaseFilters() {
+    const tc = state.testCases;
+    tc.dataset = 'all';
+    tc.threat_domain = 'all';
+    tc.tier = 'all';
+    tc.status = 'all';
+    tc.search = '';
+    tc.sortBy = 'id';
+    tc.sortOrder = 'asc';
+    tc.page = 1;
+
+    const searchInput = $('#tc-search-input');
+    if (searchInput) searchInput.value = '';
+
+    const searchClear = $('#tc-search-clear');
+    if (searchClear) searchClear.style.display = 'none';
+
+    const dsSelect = $('#tc-filter-dataset');
+    if (dsSelect) dsSelect.value = 'all';
+
+    const domSelect = $('#tc-filter-domain');
+    if (domSelect) domSelect.value = 'all';
+
+    const tierSelect = $('#tc-filter-tier');
+    if (tierSelect) tierSelect.value = 'all';
+
+    const statusSelect = $('#tc-filter-status');
+    if (statusSelect) statusSelect.value = 'all';
+
+    loadTestCases(true);
+}
+
+async function showTestCaseDetail(caseId, updateHash = true) {
+    if (!caseId) return;
+
+    const detail = $('#case-detail-drawer');
+    const overlay = $('#drawer-overlay');
+    if (!detail) return;
+
+    state.testCases.activeCaseId = caseId;
+    if (updateHash) {
+        updateUrlHash(true);
+    }
+
+    if (overlay) overlay.classList.add('active');
+    detail.classList.add('open');
+
+    let c = (state.testCases.cases || []).find(item => item.id === caseId);
+
+    if (!c) {
+        // Skeleton loader while fetching single case
+        detail.innerHTML = `
+            <div class="case-detail-header">
+                <div class="case-detail-title">
+                    <span class="mono" style="color: var(--accent-cyan); font-weight: 700;">${escapeHtml(caseId)}</span>
+                </div>
+                <button class="modal-close" onclick="closeCaseDetail()" title="Close (Esc)">✕</button>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--space-12); gap: var(--space-3); color: var(--text-tertiary);">
+                <span class="inline-spinner" style="display: inline-block; width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.2); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 0.6s linear infinite;"></span>
+                <div style="font-size: 0.85rem;">Loading test scenario details...</div>
+            </div>
+        `;
+
+        try {
+            const res = await fetch(`/api/test-cases/${encodeURIComponent(caseId)}`);
+            if (!res.ok) {
+                throw new Error(res.status === 404 ? `Test case "${caseId}" not found in benchmark pool.` : `Server error (${res.status})`);
+            }
+            c = await res.json();
+        } catch (err) {
+            detail.innerHTML = `
+                <div class="case-detail-header">
+                    <div class="case-detail-title">
+                        <span class="mono" style="color: var(--color-danger); font-weight: 700;">Not Found</span>
+                    </div>
+                    <button class="modal-close" onclick="closeCaseDetail()" title="Close (Esc)">✕</button>
+                </div>
+                <div style="padding: var(--space-8); text-align: center;">
+                    <div style="font-size: 2.2rem; margin-bottom: var(--space-2);">⚠️</div>
+                    <div style="color: var(--color-danger); font-weight: 600; margin-bottom: var(--space-2);">${escapeHtml(err.message)}</div>
+                    <div class="text-sm text-muted" style="margin-bottom: var(--space-4);">The requested test case ID does not exist in master_benchmark.parquet.</div>
+                    <button class="btn btn-secondary btn-sm" onclick="closeCaseDetail()">Close Drawer</button>
+                </div>
+            `;
+            return;
+        }
+    }
+
+    // Format tool arguments & pretty print JSON
+    let prettyArgs = c.tool_arguments || '{}';
+    let isJson = false;
+    try {
+        const parsed = typeof prettyArgs === 'string' ? JSON.parse(prettyArgs) : prettyArgs;
+        prettyArgs = JSON.stringify(parsed, null, 2);
+        isJson = true;
+    } catch (_) {
+        isJson = false;
+    }
+    state.testCases.activeCasePayload = prettyArgs;
+    const highlightedPayload = isJson ? syntaxHighlight(prettyArgs) : escapeHtml(prettyArgs);
+
+    const statusBadge = c.is_malicious
+        ? '<span class="tc-status-badge tc-status-threat" style="font-size: 0.85rem; padding: 4px 10px;">🚨 Threat (Malicious)</span>'
+        : '<span class="tc-status-badge tc-status-safe" style="font-size: 0.85rem; padding: 4px 10px;">🛡️ Safe (Benign)</span>';
+
+    let tierBadgeColor = 'var(--color-success)';
+    let tierIcon = '⚡';
+    if (c.analysis_tier === 'SEMANTIC_REQUIRED') {
+        tierBadgeColor = '#818cf8';
+        tierIcon = '🧠';
+    } else if (c.analysis_tier === 'HYBRID') {
+        tierBadgeColor = '#fbbf24';
+        tierIcon = '🔀';
+    }
+
+    detail.innerHTML = `
+        <div class="case-detail-header">
+            <div class="case-detail-title">
+                <span class="mono" style="color: var(--accent-cyan); font-weight: 700; font-size: 1.05rem;">${escapeHtml(c.id)}</span>
+            </div>
+            <button class="modal-close" onclick="closeCaseDetail()" title="Close (Esc)">✕</button>
+        </div>
+
+        <div style="margin-bottom: var(--space-4); display: flex; align-items: center; justify-content: space-between;">
+            ${statusBadge}
+            <span class="mono text-xs text-muted">Direction: ${escapeHtml(c.traffic_direction || 'tools/call')}</span>
+        </div>
+
+        <div class="case-detail-meta" style="margin-bottom: var(--space-5);">
+            <div class="case-meta-chip">
+                <span class="case-meta-label">Dataset</span>
+                <span class="case-meta-value">${escapeHtml(c.source_dataset || '—')}</span>
+            </div>
+            <div class="case-meta-chip">
+                <span class="case-meta-label">Threat Domain</span>
+                <span class="case-meta-value">${escapeHtml(c.threat_domain || '—')}</span>
+            </div>
+            <div class="case-meta-chip">
+                <span class="case-meta-label">Analysis Tier</span>
+                <span class="case-meta-value mono font-semibold" style="color: ${tierBadgeColor};">${tierIcon} ${escapeHtml(c.analysis_tier || 'STATIC_CAPABLE')}</span>
+            </div>
+            <div class="case-meta-chip">
+                <span class="case-meta-label">CWE ID</span>
+                <span class="case-meta-value mono">${escapeHtml(c.cwe || '—')}</span>
+            </div>
+            <div class="case-meta-chip">
+                <span class="case-meta-label">OWASP LLM</span>
+                <span class="case-meta-value mono">${escapeHtml(c.owasp_llm || '—')}</span>
+            </div>
+            <div class="case-meta-chip">
+                <span class="case-meta-label">Target Tool</span>
+                <span class="case-meta-value mono font-semibold" style="color: var(--accent-blue);">${escapeHtml(c.tool_name || '—')}</span>
+            </div>
+        </div>
+
+        <!-- Prompt Context -->
+        <div class="case-detail-section" style="margin-bottom: var(--space-5);">
+            <div class="case-section-title">📋 Context / User Prompt</div>
+            <div class="case-context-box" style="white-space: pre-wrap; font-size: 0.82rem; line-height: 1.6; max-height: 220px; overflow-y: auto;">${escapeHtml(c.context || 'No prompt context provided.')}</div>
+        </div>
+
+        <!-- Tool Arguments -->
+        <div class="case-detail-section">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
+                <div class="case-section-title" style="margin-bottom: 0;">📦 Tool Arguments (Payload)</div>
+                <button class="copy-payload-btn" id="btn-copy-case-payload" onclick="copyTestCasePayload(this)" title="Copy payload to clipboard">📋 Copy</button>
+            </div>
+            <pre class="case-payload-box"><code id="tc-detail-payload-code">${highlightedPayload}</code></pre>
+        </div>
+    `;
+}
+
+function copyTestCasePayload(btn) {
+    const payload = state.testCases.activeCasePayload || '';
+    navigator.clipboard.writeText(payload).then(() => {
+        btn.classList.add('copied');
+        btn.textContent = '✓ Copied!';
+        showToast('Payload copied to clipboard', 'info');
+        setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.textContent = '📋 Copy';
+        }, 1500);
+    }).catch(err => {
+        console.error('Clipboard copy failed:', err);
+        showToast('Failed to copy to clipboard', 'error');
+    });
+}
+
+// ─── URL Hash Deep-Linking (ISSUE-007) ──────────────────────────────────────
+
+function updateUrlHash(includeCaseId = true) {
+    if (state.currentPage !== 'test-cases') {
+        const hash = `#${state.currentPage}`;
+        if (window.location.hash !== hash) {
+            history.replaceState(null, '', hash);
+        }
+        return;
+    }
+
+    const params = new URLSearchParams();
+    const tc = state.testCases;
+
+    if (tc.page && tc.page > 1) {
+        params.set('page', tc.page);
+    }
+    if (tc.limit && tc.limit !== 50) {
+        params.set('limit', tc.limit);
+    }
+    if (tc.dataset && tc.dataset !== 'all') {
+        params.set('dataset', tc.dataset);
+    }
+    if (tc.threat_domain && tc.threat_domain !== 'all') {
+        params.set('domain', tc.threat_domain);
+    }
+    if (tc.tier && tc.tier !== 'all') {
+        params.set('tier', tc.tier);
+    }
+    if (tc.status && tc.status !== 'all') {
+        params.set('status', tc.status);
+    }
+    if (tc.search && tc.search.trim()) {
+        params.set('q', tc.search.trim());
+    }
+    if (tc.sortBy && tc.sortBy !== 'id') {
+        params.set('sort_by', tc.sortBy);
+    }
+    if (tc.sortOrder && tc.sortOrder !== 'asc') {
+        params.set('sort_order', tc.sortOrder);
+    }
+    if (includeCaseId && tc.activeCaseId) {
+        params.set('id', tc.activeCaseId);
+    }
+
+    const qs = params.toString();
+    const newHash = qs ? `#test-cases?${qs}` : '#test-cases';
+    if (window.location.hash !== newHash) {
+        history.replaceState(null, '', newHash);
+    }
+}
+
+function parseHash() {
+    const raw = window.location.hash.startsWith('#')
+        ? window.location.hash.substring(1)
+        : window.location.hash;
+
+    if (!raw) return { page: 'dashboard', params: new URLSearchParams() };
+
+    const qIdx = raw.indexOf('?');
+    if (qIdx === -1) {
+        return { page: raw, params: new URLSearchParams() };
+    }
+
+    const page = raw.substring(0, qIdx);
+    const qs = raw.substring(qIdx + 1);
+    return { page, params: new URLSearchParams(qs) };
+}
+
+let isNavigatingHash = false;
+async function handleHashNavigation() {
+    if (isNavigatingHash) return;
+    isNavigatingHash = true;
+
+    try {
+        const { page, params } = parseHash();
+        let targetPage = page;
+        if (targetPage === 'benchmark') targetPage = 'dashboard';
+        const validPages = ['dashboard', 'compare', 'test-cases', 'history'];
+        if (!validPages.includes(targetPage)) {
+            targetPage = 'dashboard';
+        }
+
+        if (targetPage === 'test-cases') {
+            const pageNum = parseInt(params.get('page'), 10);
+            state.testCases.page = (pageNum && pageNum > 0) ? pageNum : 1;
+
+            const limitNum = parseInt(params.get('limit'), 10);
+            state.testCases.limit = (limitNum && limitNum > 0) ? limitNum : 50;
+
+            state.testCases.dataset = params.get('dataset') || 'all';
+            state.testCases.threat_domain = params.get('domain') || params.get('threat_domain') || 'all';
+            state.testCases.tier = params.get('tier') || 'all';
+            state.testCases.status = params.get('status') || 'all';
+            state.testCases.search = params.get('q') || params.get('search') || '';
+            state.testCases.sortBy = params.get('sort_by') || 'id';
+            state.testCases.sortOrder = (params.get('sort_order') || 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
+
+            const caseId = params.get('id');
+
+            activatePageUI('test-cases');
+
+            if (!state.testCases.filtersLoaded) {
+                await loadTestCaseFilters();
+            }
+            if (!state.testCases.eventsBound) {
+                bindTestCaseEvents();
+            }
+            syncTestCaseFilterControls();
+
+            await loadTestCases(false);
+
+            if (caseId) {
+                await showTestCaseDetail(caseId, false);
+            } else {
+                closeCaseDetail(false);
+            }
+        } else {
+            activatePageUI(targetPage);
+            if (targetPage === 'history') {
+                loadRuns();
+            } else if (targetPage === 'compare') {
+                loadRuns().then(() => populateCompareSelects());
+            }
+            closeCaseDetail(false);
+        }
+    } catch (err) {
+        console.error('[HashNav] Error during hash navigation:', err);
+    } finally {
+        isNavigatingHash = false;
+    }
+}
+
+function syncTestCaseFilterControls() {
+    const searchInput = $('#tc-search-input');
+    if (searchInput) searchInput.value = state.testCases.search || '';
+
+    const searchClear = $('#tc-search-clear');
+    if (searchClear) searchClear.style.display = state.testCases.search ? 'block' : 'none';
+
+    const dsEl = $('#tc-filter-dataset');
+    if (dsEl && state.testCases.dataset) dsEl.value = state.testCases.dataset;
+
+    const domEl = $('#tc-filter-domain');
+    if (domEl && state.testCases.threat_domain) domEl.value = state.testCases.threat_domain;
+
+    const tierEl = $('#tc-filter-tier');
+    if (tierEl && state.testCases.tier) tierEl.value = state.testCases.tier;
+
+    const statusEl = $('#tc-filter-status');
+    if (statusEl && state.testCases.status) statusEl.value = state.testCases.status;
+
+    const limitEl = $('#tc-filter-limit');
+    if (limitEl && state.testCases.limit) limitEl.value = String(state.testCases.limit);
 }
 
 // ─── Toast Notifications ────────────────────────────────────────────────────
@@ -1239,6 +2017,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // L1 Fail-fast radio change listeners
     document.querySelectorAll('input[name="enable_l1"]').forEach(r => {
         r.addEventListener('change', onL1RadioChanged);
+    });
+
+    // Deep-linking hash routing (ISSUE-007)
+    window.addEventListener('hashchange', () => handleHashNavigation());
+    if (window.location.hash) {
+        handleHashNavigation();
+    }
+
+    // Global keyboard shortcuts (Escape key closes drawer & modal)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            const drawer = $('#case-detail-drawer');
+            if (drawer && drawer.classList.contains('open')) {
+                closeCaseDetail();
+            }
+            const modal = $('#run-detail-modal');
+            if (modal && modal.classList.contains('open')) {
+                closeModal();
+            }
+        }
     });
 
     // WebSocket keepalive

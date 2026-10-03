@@ -9,7 +9,9 @@ Spesifikasyon [SPEC-0002](../specs/hybrid-guard-and-discrepancy-benchmark-spec.m
 | **[ISSUE-003](./ISSUE-003-fail-fast-cascade-hybrid-engine.md)** | Kademeli Fail-Fast Hibrit Güvenlik Motoru (HybridCascadeAdapter) | [ISSUE-002](./ISSUE-002-declarative-l1-static-rule-engine-and-adapter.md) | ✅ Done |
 | **[ISSUE-004](./ISSUE-004-scalable-duckdb-relational-storage.md)** | 10.000+ Ölçekli DuckDB İlişkisel Depolama (run_case_evaluations) | [ISSUE-003](./ISSUE-003-fail-fast-cascade-hybrid-engine.md) | ✅ Done |
 | **[ISSUE-005](./ISSUE-005-discrepancy-api-and-compare-runs-ui.md)** | Uyuşmazlık (Discrepancy) API'si ve Web UI "Compare Runs" Görünümü | [ISSUE-004](./ISSUE-004-scalable-duckdb-relational-storage.md) | ✅ Done |
-| **[ISSUE-006](./ISSUE-006-test-cases-dataset-explorer.md)** | Test Vaka ve Veri Kümesi Gezgini (Test Cases Dataset Explorer) | *None* | 🟡 In Progress |
+| **[ISSUE-006](./ISSUE-006-test-cases-dataset-explorer.md)** | Test Cases Explorer — Core Paginated Table & Filters | *None* | ✅ Done |
+| **[ISSUE-007](./ISSUE-007-test-cases-drawer-and-deep-linking.md)** | Test Cases Explorer — Case Detail Drawer & Deep-Linking | [ISSUE-006](./ISSUE-006-test-cases-dataset-explorer.md) | ✅ Done |
+| **[ISSUE-008](./ISSUE-008-test-cases-search-and-sorting.md)** | Test Cases Explorer — Substring ILIKE Search & Dynamic Sorting | [ISSUE-006](./ISSUE-006-test-cases-dataset-explorer.md) | ✅ Done |
 
 ---
 
@@ -20,5 +22,7 @@ graph LR
     ISSUE002 --> ISSUE003[ISSUE-003: Hibrit Cascade Adaptör]
     ISSUE003 --> ISSUE004[ISSUE-004: DuckDB İlişkisel Depolama]
     ISSUE004 --> ISSUE005[ISSUE-005: Compare Runs & Discrepancy UI]
-    ISSUE001 --> ISSUE006[ISSUE-006: Test Cases Dataset Explorer]
+    ISSUE001 --> ISSUE006[ISSUE-006: Core Paginated Explorer]
+    ISSUE006 --> ISSUE007[ISSUE-007: Drawer & Deep-Linking]
+    ISSUE006 --> ISSUE008[ISSUE-008: ILIKE Search & Sorting]
 ```

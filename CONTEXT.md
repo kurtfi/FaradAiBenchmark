@@ -28,3 +28,9 @@ The detection, masking, or prevention of unauthorized transmission of sensitive 
 ### Declarative Rules & L1
 - **`Static Security Rule`**: A declarative specification formatted in YAML containing regex match patterns, threat domain mappings, CWE IDs, and description.
 - **`Compiled Rule Engine`**: The high-throughput in-memory engine that compiles declarative YAML regex rules on startup to perform sub-millisecond evaluation (<0.2ms).
+
+### Multi-SLM & Adapter Architecture
+- **`Security Model Adapter`**: The unified abstraction implementing standard parameter evaluation (`evaluate(tool_name, tool_arguments, context) -> Dict`) across heterogeneous SLMs (Laya, Qwen-Coder, Granite Guardian, Llama Guard, ShieldGemma, Prompt Guard).
+- **`Fair Quantization Baseline`**: Standardized 4-bit quantization (MLX 4-bit / Q4_K_M) enforced across generative SLMs to ensure unified memory footprint (~1.2-2.0 GB) and hardware latency parity on Apple Silicon.
+- **`Guard MCP Factory`**: The shared builder pattern that wraps any `SecurityModelAdapter` into an independent, zero-flag FastMCP server exposing the uniform `inspect_tool_call` tool contract.
+- **`Comparative Leaderboard Run`**: The two-phased benchmark execution workflow (200-case smoke test followed by 2000+ full pool evaluation) generating side-by-side accuracy, FPR, and latency metrics across all registered adapters.

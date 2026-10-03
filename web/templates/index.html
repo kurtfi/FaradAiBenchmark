@@ -20,6 +20,7 @@
     <nav class="nav">
         <button class="nav-btn active" data-page="dashboard">Dashboard</button>
         <button class="nav-btn" data-page="compare">⚖️ Compare Runs</button>
+        <button class="nav-btn" data-page="test-cases">🔍 Test Cases</button>
         <button class="nav-btn" data-page="history">History</button>
     </nav>
 
@@ -348,6 +349,146 @@
         </div>
     </div>
 
+    <!-- ─── Test Cases Explorer Page (ISSUE-006) ────────────────── -->
+    <div class="page" id="page-test-cases">
+        <div class="page-header flex items-center justify-between" style="flex-wrap: wrap; gap: var(--space-4); margin-bottom: var(--space-6);">
+            <div>
+                <h1 class="page-title">🔍 Test Cases Explorer</h1>
+                <p class="page-subtitle">Inspect and filter standardized benchmark test scenarios directly from the master dataset pool.</p>
+            </div>
+            <div class="tc-stat-banner">
+                <div class="tc-stat-item">
+                    <span class="tc-stat-label">Total Pool</span>
+                    <span class="tc-stat-value mono" id="tc-total-count">—</span>
+                </div>
+                <div class="tc-stat-item">
+                    <span class="tc-stat-label">Matching Cases</span>
+                    <span class="tc-stat-value mono" id="tc-filtered-count">—</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Card -->
+        <div class="card tc-filter-card">
+            <div class="card-title" style="margin-bottom: var(--space-4);"><span class="icon">⚡</span> Filter & Narrow Test Cases</div>
+
+            <!-- Search Bar Row -->
+            <div class="tc-search-bar" style="margin-bottom: var(--space-4);">
+                <div class="tc-search-wrapper">
+                    <span class="tc-search-icon">🔍</span>
+                    <input
+                        type="text"
+                        id="tc-search-input"
+                        class="form-input tc-search-input"
+                        placeholder="Search prompt context, arguments, attack payloads (e.g. /etc/passwd, ' OR 1=1), CWE, ID..."
+                        autocomplete="off"
+                        spellcheck="false"
+                    />
+                    <button type="button" id="tc-search-clear" class="tc-search-clear" title="Clear search (Esc)">✕</button>
+                </div>
+            </div>
+
+            <div class="tc-filter-grid">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="tc-filter-dataset">Source Dataset</label>
+                    <select class="form-select" id="tc-filter-dataset">
+                        <option value="all">All Datasets (Loading...)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="tc-filter-domain">Threat Domain</label>
+                    <select class="form-select" id="tc-filter-domain">
+                        <option value="all">All Domains (Loading...)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="tc-filter-tier">Analysis Tier</label>
+                    <select class="form-select" id="tc-filter-tier">
+                        <option value="all">All Tiers</option>
+                        <option value="STATIC_CAPABLE">⚡ Static Capable</option>
+                        <option value="SEMANTIC_REQUIRED">🧠 Semantic Required</option>
+                        <option value="HYBRID">🔀 Hybrid</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="tc-filter-status">Safety Status</label>
+                    <select class="form-select" id="tc-filter-status">
+                        <option value="all">All Statuses</option>
+                        <option value="malicious">🚨 Malicious (Threat)</option>
+                        <option value="safe">🛡️ Safe (Benign)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="tc-filter-limit">Page Size</label>
+                    <select class="form-select" id="tc-filter-limit">
+                        <option value="20">20 per page</option>
+                        <option value="50" selected>50 per page</option>
+                        <option value="100">100 per page</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: flex-end;">
+                    <button class="btn btn-secondary" id="tc-btn-reset" style="width: 100%;">
+                        ✕ Reset Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Card -->
+        <div class="card" style="margin-top: var(--space-6); padding: 0; overflow: hidden;">
+            <div class="table-container" style="max-height: 600px; overflow-y: auto;">
+                <table class="case-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th class="tc-sortable sorted-asc" data-sort="id" style="width: 190px;" title="Click to sort by Case ID">
+                                <div class="tc-th-content"><span>Case ID</span> <span class="tc-sort-icon">▲</span></div>
+                            </th>
+                            <th class="tc-sortable" data-sort="source_dataset" title="Click to sort by Source Dataset">
+                                <div class="tc-th-content"><span>Source Dataset</span> <span class="tc-sort-icon">⇅</span></div>
+                            </th>
+                            <th class="tc-sortable" data-sort="threat_domain" title="Click to sort by Threat Domain">
+                                <div class="tc-th-content"><span>Threat Domain</span> <span class="tc-sort-icon">⇅</span></div>
+                            </th>
+                            <th class="tc-sortable" data-sort="analysis_tier" title="Click to sort by Analysis Tier">
+                                <div class="tc-th-content"><span>Analysis Tier</span> <span class="tc-sort-icon">⇅</span></div>
+                            </th>
+                            <th class="tc-sortable" data-sort="is_malicious" title="Click to sort by Safety Status">
+                                <div class="tc-th-content"><span>Status</span> <span class="tc-sort-icon">⇅</span></div>
+                            </th>
+                            <th class="tc-sortable" data-sort="tool_name" title="Click to sort by Target Tool">
+                                <div class="tc-th-content"><span>Target Tool</span> <span class="tc-sort-icon">⇅</span></div>
+                            </th>
+                            <th style="width: 90px; text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tc-cases-tbody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: var(--space-8); color: var(--text-tertiary);">
+                                Loading test cases from master pool...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Bar -->
+            <div class="tc-pagination-bar">
+                <div class="tc-pagination-info" id="tc-pagination-info">
+                    Showing 0 - 0 of 0 cases
+                </div>
+                <div class="tc-pagination-controls">
+                    <button class="btn btn-sm btn-secondary tc-page-btn" id="tc-page-first" title="First Page">« First</button>
+                    <button class="btn btn-sm btn-secondary tc-page-btn" id="tc-page-prev" title="Previous Page">‹ Prev</button>
+                    <div class="tc-page-indicator">
+                        Page <span class="mono font-bold" id="tc-current-page">1</span> of <span class="mono font-bold" id="tc-total-pages">1</span>
+                    </div>
+                    <button class="btn btn-sm btn-secondary tc-page-btn" id="tc-page-next" title="Next Page">Next ›</button>
+                    <button class="btn btn-sm btn-secondary tc-page-btn" id="tc-page-last" title="Last Page">Last »</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ─── History Page ────────────────────────────────────── -->
     <div class="page" id="page-history">
         <div class="page-header">
@@ -472,7 +613,8 @@
     </div>
 </div>
 
-<!-- ═══════════════ Case Detail Drawer ═══════════════ -->
+<!-- ═══════════════ Case Detail Drawer & Overlay ═══════════════ -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeCaseDetail()"></div>
 <div class="case-detail-drawer" id="case-detail-drawer"></div>
 
 <script src="/static/app.js"></script>

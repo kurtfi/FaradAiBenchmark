@@ -1008,16 +1008,38 @@ body::before {
     transition: var(--transition-fast);
 }
 
+/* ─── Drawer Backdrop Overlay ────────────────────────────────────────────── */
+.drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 240;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.drawer-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 /* ─── Case Detail Drawer (Slide-in from right) ──────────────────────────── */
 .case-detail-drawer {
     position: fixed;
     top: 0;
-    right: -520px;
-    width: 500px;
+    right: -540px;
+    width: 520px;
+    max-width: 92vw;
     height: 100vh;
     background: var(--bg-secondary);
     border-left: 1px solid var(--border-glass);
-    box-shadow: -8px 0 40px rgba(0, 0, 0, 0.5);
+    box-shadow: -10px 0 45px rgba(0, 0, 0, 0.6);
     z-index: 250;
     overflow-y: auto;
     padding: var(--space-6);
@@ -1405,4 +1427,229 @@ body::before {
     color: var(--color-success);
     border-color: rgba(16, 185, 129, 0.4);
 }
+
+/* ─── Test Cases Explorer (ISSUE-006) ────────────────────────────────────── */
+
+.tc-stat-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.tc-stat-item {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+    display: flex;
+    flex-direction: column;
+    min-width: 130px;
+}
+
+.tc-stat-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    font-weight: 600;
+}
+
+.tc-stat-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.tc-filter-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glass);
+}
+
+/* ─── Search Bar ─────────────────────────────────────────────────────────── */
+.tc-search-bar {
+    width: 100%;
+}
+
+.tc-search-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.tc-search-icon {
+    position: absolute;
+    left: 14px;
+    font-size: 0.95rem;
+    color: var(--text-tertiary);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.tc-search-input {
+    width: 100%;
+    padding-left: 40px;
+    padding-right: 36px;
+    background: rgba(10, 15, 29, 0.7);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    font-size: 0.88rem;
+    height: 42px;
+    color: var(--text-primary);
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.tc-search-input:focus {
+    background: rgba(13, 20, 38, 0.95);
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+    outline: none;
+}
+
+.tc-search-clear {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: none;
+    padding: 4px;
+    line-height: 1;
+    transition: color 150ms ease;
+}
+
+.tc-search-clear:hover {
+    color: var(--text-primary);
+}
+
+/* ─── Sortable Table Headers ─────────────────────────────────────────────── */
+th.tc-sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background 150ms ease, color 150ms ease;
+    white-space: nowrap;
+}
+
+th.tc-sortable:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--accent-cyan);
+}
+
+.tc-th-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tc-sort-icon {
+    font-size: 0.75rem;
+    opacity: 0.35;
+    transition: opacity 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+th.tc-sortable:hover .tc-sort-icon {
+    opacity: 0.8;
+}
+
+th.tc-sortable.sorted-asc .tc-sort-icon,
+th.tc-sortable.sorted-desc .tc-sort-icon {
+    opacity: 1;
+    color: var(--accent-cyan);
+}
+
+.tc-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: var(--space-4);
+    align-items: flex-end;
+}
+
+.tc-pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-6);
+    background: rgba(15, 20, 32, 0.6);
+    border-top: 1px solid var(--border-subtle);
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.tc-pagination-info {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.tc-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.tc-page-indicator {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    padding: 0 var(--space-2);
+}
+
+.tc-page-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.tc-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.tc-status-threat {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);
+}
+
+.tc-status-safe {
+    background: rgba(16, 185, 129, 0.12);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+}
+
+.tc-tier-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+}
+
+.tc-tier-static {
+    background: rgba(6, 182, 212, 0.12);
+    color: #38bdf8;
+    border: 1px solid rgba(6, 182, 212, 0.25);
+}
+
+.tc-tier-semantic {
+    background: rgba(99, 102, 241, 0.12);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.tc-tier-hybrid {
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
 
