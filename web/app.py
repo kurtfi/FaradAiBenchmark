@@ -113,11 +113,12 @@ def get_available_models() -> List[Dict[str, str]]:
     """Return list of available model adapters."""
     models = [
         {"id": "hybrid-cascade", "name": "Hybrid Cascade (L1 + L2)", "description": "Two-stage fail-fast static rules + SLM semantic engine", "icon": "🚀", "status": "available"},
-        {"id": "laya-mlx", "name": "Laya MLX", "description": "Local Apple Silicon — Laya OWASP Guard", "icon": "🍎"},
+        {"id": "laya-mlx", "name": "Laya MLX", "description": "Local Apple Silicon — Laya OWASP Guard", "icon": "🍎", "status": "available"},
         {"id": "qwen-coder", "name": "Qwen2.5-Coder-1.5B", "description": "High-speed code reasoning & tool safety adapter (MLX 4-bit)", "icon": "💻", "status": "available"},
         {"id": "granite-guardian", "name": "IBM Granite Guardian 3.0-2B", "description": "Enterprise agentic risk & tool safety classifier (MLX)", "icon": "🛡️", "status": "available"},
         {"id": "llama-guard-3", "name": "Meta Llama Guard 3 1B", "description": "MLCommons agent safety & misuse detection (MLX)", "icon": "🦙", "status": "available"},
         {"id": "prompt-guard", "name": "Prompt-Guard-86M", "description": "Ultra-fast (<25ms) indirect prompt injection classifier (MPS)", "icon": "⚡", "status": "available"},
+        {"id": "shield-gemma", "name": "Google ShieldGemma 2B", "description": "Policy-based safety classifier (MLX)", "icon": "💎", "status": "available"},
         {"id": "l1-rules", "name": "L1 Static Rules", "description": "Declarative YAML Regex Engine (<0.2ms)", "icon": "⚡", "status": "available"},
         {"id": "mock", "name": "Mock (Heuristic)", "description": "Heuristic baseline rule testing engine", "icon": "🧪", "status": "available"},
     ]
@@ -219,6 +220,8 @@ async def execute_benchmark(run_id: str, dataset_path: str, model_name: str, tie
 
     if model_name.lower() in ("l1-rules", "l1_rules"):
         adapter = L1StaticAdapter()
+    elif model_name.lower() in ("hybrid-cascade", "hybrid_cascade"):
+        adapter = HybridCascadeAdapter()
     else:
         adapter_cls = ADAPTER_REGISTRY.get(model_name.lower(), MockSecurityAdapter)
         try:
