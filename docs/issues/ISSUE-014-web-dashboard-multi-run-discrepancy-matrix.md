@@ -17,14 +17,14 @@ This vertical slice includes:
    - Display interactive discrepancy table with filter by CWE and Threat Domain.
    - Clicking a discrepancy row opens the Case Detail Drawer to inspect the specific payload where models disagreed.
 
-## Status: READY FOR IMPLEMENTATION ⏳
+## Status: DONE ✅
 
 ## Acceptance criteria
-- [ ] Any completed SLM run appears in the Compare Runs dropdowns.
-- [ ] Selecting Run A (e.g. Laya) and Run B (e.g. Qwen-Coder) renders side-by-side metric deltas.
-- [ ] Discrepancy table displays only cases where `run_a.predicted_blocked != run_b.predicted_blocked`.
-- [ ] Clicking a discrepancy case opens the Case Detail Drawer displaying full arguments and context.
-- [ ] Integration tests verify the `/api/discrepancies` endpoint with multi-model runs.
+- [x] Any completed SLM run appears in the Compare Runs dropdowns.
+- [x] Selecting Run A (e.g. Laya) and Run B (e.g. Qwen-Coder) renders side-by-side metric deltas.
+- [x] Discrepancy table displays only cases where `run_a.predicted_blocked != run_b.predicted_blocked`.
+- [x] Clicking a discrepancy case opens the Case Detail Drawer displaying full arguments and context.
+- [x] Integration tests verify the `/api/discrepancies` endpoint with multi-model runs.
 
 ## Blocked by
 - [ISSUE-013: Two-Phased Comparative Benchmark Runner & CLI Leaderboard Matrix](./ISSUE-013-two-phased-comparative-benchmark-runner-and-leaderboard.md)

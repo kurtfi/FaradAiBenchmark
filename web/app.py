@@ -112,17 +112,22 @@ def init_db():
 def get_available_models() -> List[Dict[str, str]]:
     """Return list of available model adapters."""
     models = [
+        {"id": "hybrid-cascade", "name": "Hybrid Cascade (L1 + L2)", "description": "Two-stage fail-fast static rules + SLM semantic engine", "icon": "🚀", "status": "available"},
         {"id": "laya-mlx", "name": "Laya MLX", "description": "Local Apple Silicon — Laya OWASP Guard", "icon": "🍎"},
-        {"id": "mock", "name": "Mock (Heuristic)", "description": "Kural & sezgisel tabanlı test motoru", "icon": "🧪", "status": "available"},
+        {"id": "qwen-coder", "name": "Qwen2.5-Coder-1.5B", "description": "High-speed code reasoning & tool safety adapter (MLX 4-bit)", "icon": "💻", "status": "available"},
+        {"id": "granite-guardian", "name": "IBM Granite Guardian 3.0-2B", "description": "Enterprise agentic risk & tool safety classifier (MLX)", "icon": "🛡️", "status": "available"},
+        {"id": "llama-guard-3", "name": "Meta Llama Guard 3 1B", "description": "MLCommons agent safety & misuse detection (MLX)", "icon": "🦙", "status": "available"},
+        {"id": "prompt-guard", "name": "Prompt-Guard-86M", "description": "Ultra-fast (<25ms) indirect prompt injection classifier (MPS)", "icon": "⚡", "status": "available"},
         {"id": "l1-rules", "name": "L1 Static Rules", "description": "Declarative YAML Regex Engine (<0.2ms)", "icon": "⚡", "status": "available"},
+        {"id": "mock", "name": "Mock (Heuristic)", "description": "Heuristic baseline rule testing engine", "icon": "🧪", "status": "available"},
     ]
     # Check if laya_mlx is actually importable
     try:
         import laya_mlx
-        models[0]["status"] = "available"
+        models[1]["status"] = "available"
     except ImportError:
-        models[0]["status"] = "unavailable"
-        models[0]["description"] += " (not installed)"
+        models[1]["status"] = "unavailable"
+        models[1]["description"] += " (not installed)"
 
     return models
 

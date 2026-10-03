@@ -16,7 +16,7 @@ Architectural Decision: [ADR 0007: Multi-SLM L2 Adapters & Benchmark Architectur
 | **[ISSUE-011](./ISSUE-011-ultra-fast-injection-classifier-adapter.md)** | Ultra-Fast Injection Classifier Adapter (Prompt-Guard-86M) | [ISSUE-009](./ISSUE-009-decoupled-adapter-core-and-qwen-coder-adapter.md) | ✅ Done |
 | **[ISSUE-012](./ISSUE-012-standalone-fastmcp-guard-factory-and-servers.md)** | Standalone FastMCP Guard Factory & Zero-Flag Executables | [ISSUE-009](./ISSUE-009-decoupled-adapter-core-and-qwen-coder-adapter.md), [ISSUE-010](./ISSUE-010-agent-and-tool-safety-adapters.md), [ISSUE-011](./ISSUE-011-ultra-fast-injection-classifier-adapter.md) | ✅ Done |
 | **[ISSUE-013](./ISSUE-013-two-phased-comparative-benchmark-runner-and-leaderboard.md)** | Two-Phased Comparative Benchmark Runner & CLI Leaderboard Matrix | [ISSUE-009](./ISSUE-009-decoupled-adapter-core-and-qwen-coder-adapter.md), [ISSUE-010](./ISSUE-010-agent-and-tool-safety-adapters.md), [ISSUE-011](./ISSUE-011-ultra-fast-injection-classifier-adapter.md) | ✅ Done |
-| **[ISSUE-014](./ISSUE-014-web-dashboard-multi-run-discrepancy-matrix.md)** | Web Dashboard Multi-Run Discrepancy Matrix & Cross-Model Comparison | [ISSUE-013](./ISSUE-013-two-phased-comparative-benchmark-runner-and-leaderboard.md) | ⏳ Ready |
+| **[ISSUE-014](./ISSUE-014-web-dashboard-multi-run-discrepancy-matrix.md)** | Web Dashboard Multi-Run Discrepancy Matrix & Cross-Model Comparison | [ISSUE-013](./ISSUE-013-two-phased-comparative-benchmark-runner-and-leaderboard.md) | ✅ Done |
 
 ### SPEC-0004 Dependency Graph
 ```mermaid
