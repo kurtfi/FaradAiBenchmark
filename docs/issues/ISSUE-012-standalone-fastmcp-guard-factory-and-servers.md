@@ -21,14 +21,14 @@ This vertical slice includes:
 3. **Integration Verification:**
    - Script `tests/test_mcp_servers.py` testing stdio communication and payload inspection across all servers.
 
-## Status: READY FOR IMPLEMENTATION ⏳
+## Status: DONE ✅
 
 ## Acceptance criteria
-- [ ] `guard_mcp_factory.py` successfully wraps any `BaseModelAdapter` into a FastMCP instance.
-- [ ] `inspect_tool_call` conforms strictly to the existing Laya FastMCP schema.
-- [ ] Each executable entrypoint (`qwen_security_guard_mcp.py`, etc.) can run standalone via `python <file>.py`.
-- [ ] Runtime errors in adapters trigger safe fallback with `decision_engine: L2_FALLBACK` and logged warning.
-- [ ] Automated integration test verifies stdio tool call inspection for each server.
+- [x] `guard_mcp_factory.py` successfully wraps any `BaseModelAdapter` into a FastMCP instance.
+- [x] `inspect_tool_call` conforms strictly to the existing Laya FastMCP schema.
+- [x] Each executable entrypoint (`qwen_security_guard_mcp.py`, etc.) can run standalone via `python <file>.py`.
+- [x] Runtime errors in adapters trigger safe fallback with `decision_engine: L2_FALLBACK` and logged warning.
+- [x] Automated integration test verifies stdio tool call inspection for each server.
 
 ## Blocked by
 - [ISSUE-009: Decoupled Adapter Core & Qwen2.5-Coder Model Adapter](./ISSUE-009-decoupled-adapter-core-and-qwen-coder-adapter.md)
