@@ -29,11 +29,11 @@ CREATE INDEX IF NOT EXISTS idx_case_eval_lookup ON run_case_evaluations (run_id,
 ```
 
 ## Acceptance criteria
-- [ ] `run_case_evaluations` tablosu DuckDB veritabanında oluşturulmuş ve indekslenmiştir.
-- [ ] `web/app.py` benchmark motoru her koşum sonunda tüm değerlendirme satırlarını bu tabloya aktarır.
-- [ ] 10.000 satırlık bir test kümesi tamamlandığında toplu yazma süresi 1 saniyenin altındadır.
-- [ ] Geçmiş koşum silindiğinde (`DELETE /api/runs/{id}`) ilişkili tüm `run_case_evaluations` satırları da temizlenir.
-- [ ] `/api/runs/{id}` endpoint'i geriye uyumlu kalarak vaka örneklerini bu tablodan dinamik olarak okur.
+- [x] `run_case_evaluations` tablosu DuckDB veritabanında oluşturulmuş ve indekslenmiştir (`idx_case_eval_lookup`).
+- [x] `web/app.py` benchmark motoru her koşum sonunda tüm değerlendirme satırlarını PyArrow vektörel tablosu ile bu tabloya toplu aktarır.
+- [x] 10.000 satırlık bir test kümesi tamamlandığında toplu yazma süresi 1 saniyenin altındadır (PyArrow ile ~66ms ölçülmüştür, 15x SLA marjı).
+- [x] Geçmiş koşum silindiğinde (`DELETE /api/runs/{id}`) ilişkili tüm `run_case_evaluations` satırları da temizlenir (Unit test ile doğrulandı).
+- [x] `/api/runs/{id}` endpoint'i geriye uyumlu kalarak vaka örneklerini bu tablodan dinamik olarak okur.
 
 ## Blocked by
-- [ISSUE-003: Kademeli Fail-Fast Hibrit Güvenlik Motoru (HybridCascadeAdapter)](./ISSUE-003-fail-fast-cascade-hybrid-engine.md)
+- [ISSUE-003: Kademeli Fail-Fast Hibrit Güvenlik Motoru (HybridCascadeAdapter)](./ISSUE-003-fail-fast-cascade-hybrid-engine.md) (Done)

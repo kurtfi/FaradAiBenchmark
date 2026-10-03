@@ -25,11 +25,12 @@ LIMIT ? OFFSET ?;
 ```
 
 ## Acceptance criteria
-- [ ] `GET /api/runs/{run_a}/compare/{run_b}` endpoint'i iki koşumu SQL JOIN ile milisaniyeler içinde kıyaslayıp sayfalanmış uyuşmazlık listesi ve mutabakat yüzdesi döner.
-- [ ] Web arayüzünde üst navigasyonda **"⚖️ Compare Runs"** sekmesi aktif hale getirilmiştir.
-- [ ] İki koşum seçildiğinde makro metrik kartları (F1 delta, ortalama gecikme farkı, agreement rate) anında hesaplanıp gösterilir.
-- [ ] Discrepancy tablosunda filtreleme (Tüm Zıtlar / A'nın kaçırıp B'nin yakaladıkları / B'nin kaçırıp A'nın yakaladıkları) çalışır.
-- [ ] Uyuşmazlık tablosundaki bir satıra tıklandığında sağdaki Case Detail Drawer açılarak her iki modelin kararı ve vakanın payload içeriği görüntülenir.
+- [x] `GET /api/runs/{run_a}/compare/{run_b}` endpoint'i iki koşumu SQL JOIN ile milisaniyeler içinde kıyaslayıp sayfalanmış uyuşmazlık listesi ve mutabakat yüzdesi döner.
+- [x] Web arayüzünde üst navigasyonda **"⚖️ Compare Runs"** sekmesi aktif hale getirilmiştir.
+- [x] Birinci kutuda seçilen koşumun dataset'ine göre ikinci kutu (Run B) dinamik olarak filtrelenerek yalnızca **aynı dataseti** kullanan diğer modeller listelenir (kesişim garantisi sağlanmıştır).
+- [x] İki koşum seçildiğinde makro metrik kartları (F1 delta, ortalama gecikme farkı, agreement rate, A kaçırdı/B yakaladı) anında hesaplanıp gösterilir.
+- [x] Discrepancy tablosunda filtreleme (Tüm Zıtlar / A'nın kaçırıp B'nin yakaladıkları / B'nin kaçırıp A'nın yakaladıkları / FP Ayrışması) çalışır.
+- [x] Uyuşmazlık tablosundaki bir satıra tıklandığında sağdaki Case Detail Drawer açılarak her iki modelin kararı yan yana ve vakanın payload içeriği syntax-highlighting ile görüntülenir.
 
 ## Blocked by
-- [ISSUE-004: 10.000+ Ölçekli DuckDB İlişkisel Depolama (run_case_evaluations)](./ISSUE-004-scalable-duckdb-relational-storage.md)
+- [ISSUE-004: 10.000+ Ölçekli DuckDB İlişkisel Depolama (run_case_evaluations)](./ISSUE-004-scalable-duckdb-relational-storage.md) (Done)

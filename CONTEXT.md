@@ -21,6 +21,7 @@ The detection, masking, or prevention of unauthorized transmission of sensitive 
 - **`Fail-Fast Cascade`**: The orchestration pattern where requests pass through L1 first; immediate violations are blocked at L1 with zero GPU/SLM overhead, and only clean/inconclusive requests cascade to L2.
 
 ### Benchmark Storage & Comparison
+- **`Benchmark Case Pool`**: The unified, single-source repository of all standardized test scenarios (`master_benchmark.parquet`). Rather than fragmented subsets or individual files, all evaluations, exploratory filtering, and distributions are queried against this single consolidated pool using columnar metadata filters (`source_dataset`, `threat_domain`, `analysis_tier`, `is_malicious`).
 - **`Run Case Evaluation`**: The granular, relational record of a single test case evaluation within a run (`run_id`, `case_id`, `domain`, `expected`, `predicted`, `correct`, `latency_ms`).
 - **`Discrepancy Analysis`**: The differential SQL comparison between two benchmark runs to isolate disagreements (cases where Model A and Model B reached opposite verdicts).
 

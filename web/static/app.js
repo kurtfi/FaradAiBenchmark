@@ -229,6 +229,14 @@ async function startBenchmark() {
     const dataset = state.datasets.find(d => d.id === datasetSelect.value);
     if (!dataset) return;
 
+    // Read tier scope (all, static, semantic)
+    const tierInput = document.querySelector('input[name="tier_scope"]:checked');
+    const tierFilter = tierInput ? tierInput.value : 'all';
+
+    // Read L1 toggle (true / false)
+    const l1Input = document.querySelector('input[name="enable_l1"]:checked');
+    const enableL1 = l1Input ? (l1Input.value === 'true') : true;
+
     const btn = $('#btn-start');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner">⏳</span> Çalışıyor...';
@@ -253,8 +261,10 @@ async function startBenchmark() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 dataset_path: dataset.path,
-                dataset_name: dataset.id,
+                dataset_name: dataset.name || dataset.id,
+                tier_filter: tierFilter,
                 model_name: modelSelect.value,
+                enable_l1: enableL1,
             })
         });
         const data = await res.json();
@@ -304,6 +314,90 @@ async function deleteRun(runId, event) {
 
 // ─── Renderers ──────────────────────────────────────────────────────────────
 
+function updateTierCounts(ds) {
+    if (!ds) {
+        setText('#tier-count-all', '—');
+        setText('#tier-count-static', '—');
+        setText('#tier-count-semantic', '—');
+        return;
+    }
+    setText('#tier-count-all', (ds.rows || 0).toLocaleString());
+    setText('#tier-count-static', (ds.static_rows || 0).toLocaleString());
+    setText('#tier-count-semantic', (ds.semantic_rows || 0).toLocaleString());
+    updateTierDescription();
+}
+
+function updateTierDescription() {
+    const tierInput = document.querySelector('input[name="tier_scope"]:checked');
+    const tier = tierInput ? tierInput.value : 'all';
+    const datasetSelect = $('#dataset-select');
+    const ds = state.datasets.find(d => d.id === (datasetSelect ? datasetSelect.value : ''));
+
+    const descEl = $('#tier-scope-desc');
+    if (!descEl) return;
+
+    if (tier === 'static') {
+        const cnt = ds ? (ds.static_rows || 0).toLocaleString() : '811';
+        descEl.textContent = `⚡ Statik Kapsam: Yalnızca mikrosaniyelik regex/DLP ile tespit edilebilir kurallar (${cnt} vaka - STATIC_CAPABLE).`;
+    } else if (tier === 'semantic') {
+        const cnt = ds ? (ds.semantic_rows || 0).toLocaleString() : '1,189';
+        descEl.textContent = `🧠 Semantik Kapsam: L2 derin anlamsal analiz gerektiren karmaşık senaryolar (${cnt} vaka - SEMANTIC_REQUIRED).`;
+    } else {
+        const cnt = ds ? (ds.rows || 0).toLocaleString() : '2,000';
+        descEl.textContent = `🌐 Tümü: Statik kural ve semantik test vakalarının tamamı (${cnt} vaka).`;
+    }
+}
+
+function onTierRadioChanged() {
+    const tierInputs = document.querySelectorAll('input[name="tier_scope"]');
+    tierInputs.forEach(input => {
+        const label = input.closest('.tier-radio-btn');
+        if (label) {
+            label.classList.toggle('active', input.checked);
+        }
+    });
+    updateTierDescription();
+}
+
+function onL1RadioChanged() {
+    const l1Inputs = document.querySelectorAll('input[name="enable_l1"]');
+    l1Inputs.forEach(input => {
+        const card = input.closest('.l1-radio-card');
+        if (card) {
+            card.classList.toggle('active', input.checked);
+        }
+    });
+}
+
+function onModelChanged() {
+    const modelSelect = $('#model-select');
+    if (!modelSelect) return;
+    const modelId = modelSelect.value;
+    const model = state.models.find(m => m.id === modelId);
+
+    const hint = $('#model-hint');
+    if (hint && model) {
+        hint.textContent = model.description || '';
+    }
+
+    const disableCard = $('#l1-card-disable');
+    const disableInput = disableCard ? disableCard.querySelector('input') : null;
+    const enableCard = $('#l1-card-enable');
+    const enableInput = enableCard ? enableCard.querySelector('input') : null;
+
+    if (modelId === 'l1-rules') {
+        if (disableCard) disableCard.classList.add('disabled');
+        if (disableInput) disableInput.disabled = true;
+        if (enableInput) enableInput.checked = true;
+        if (enableCard) enableCard.classList.add('active');
+        if (disableCard) disableCard.classList.remove('active');
+        if (hint) hint.textContent = 'L1 Declarative Static Rule Engine (<0.2ms regex/DLP).';
+    } else {
+        if (disableCard) disableCard.classList.remove('disabled');
+        if (disableInput) disableInput.disabled = false;
+    }
+}
+
 function renderDatasetSelect() {
     const select = $('#dataset-select');
     if (!select) return;
@@ -314,6 +408,16 @@ function renderDatasetSelect() {
         opt.textContent = `${ds.name} (${ds.rows.toLocaleString()} rows, ${ds.size_kb} KB)`;
         select.appendChild(opt);
     });
+
+    if (state.datasets.length > 0) {
+        select.value = state.datasets[0].id;
+        const ds = state.datasets[0];
+        const hint = $('#dataset-hint');
+        if (hint) {
+            hint.textContent = `${ds.rows.toLocaleString()} satır · ${ds.size_kb} KB · ${ds.filename}`;
+        }
+        updateTierCounts(ds);
+    }
 }
 
 function renderModelSelect() {
@@ -330,6 +434,11 @@ function renderModelSelect() {
         }
         select.appendChild(opt);
     });
+
+    if (state.models.length > 0) {
+        select.selectedIndex = 0;
+        onModelChanged();
+    }
 }
 
 function renderRunsTable() {
@@ -395,12 +504,18 @@ function renderRunDetailModal(data) {
     setText('#modal-status', data.status);
 
     // Metrics
+    const l1Decided = (data.case_results || []).filter(c => c.decided_by === 'L1').length;
+    const casesCount = (data.case_results || []).length;
+
     const metricsHtml = [
         { label: 'Accuracy', value: data.accuracy, suffix: '%' },
         { label: 'Precision', value: data.precision, suffix: '%' },
         { label: 'Recall', value: data.recall, suffix: '%' },
         { label: 'F1 Score', value: data.f1, suffix: '%' },
         { label: 'FPR', value: data.fpr, suffix: '%' },
+        ...(l1Decided > 0 && casesCount > 0 ? [
+            { label: '⚡ L1 Offload', value: Math.round((l1Decided / casesCount) * 100), suffix: '%' }
+        ] : []),
         { label: 'Avg Latency', value: data.avg_latency_ms, suffix: 'ms' },
         { label: 'P95 Latency', value: data.p95_latency_ms, suffix: 'ms' },
         { label: 'Duration', value: data.duration_secs, suffix: 's' },
@@ -512,7 +627,7 @@ function renderFilteredCases() {
             <td><span class="badge-domain">${c.domain}</span></td>
             <td class="mono text-sm">${c.tool_name}</td>
             <td>${c.is_malicious ? '🔴 Zararlı' : '🟢 Meşru'}</td>
-            <td>${c.predicted_blocked ? '🛑 Blocked' : '✅ Allowed'}</td>
+            <td>${c.predicted_blocked ? '🛑 Blocked' : '✅ Allowed'}${c.decided_by ? ` <span style="font-size:0.75rem; font-weight:600; padding:1px 5px; border-radius:4px; background:${c.decided_by==='L1'?'rgba(245,158,11,0.15)':'rgba(59,130,246,0.15)'}; color:${c.decided_by==='L1'?'#f59e0b':'#3b82f6'}">${c.decided_by}</span>` : ''}</td>
             <td class="mono">${c.latency_ms}ms</td>
             <td class="case-expand-icon">▸</td>
         </tr>
@@ -598,6 +713,18 @@ function showCaseDetail(idx) {
                 <span class="case-meta-label">Confidence</span>
                 <span class="case-meta-value mono">${(c.confidence * 100).toFixed(1)}%</span>
             </div>
+            ${c.decided_by ? `
+            <div class="case-meta-chip">
+                <span class="case-meta-label">Decided By</span>
+                <span class="case-meta-value mono font-semibold" style="color: ${c.decided_by === 'L1' ? '#f59e0b' : '#3b82f6'};">
+                    ${c.decided_by === 'L1' ? '⚡ L1 Static' : '🍎 L2 MLX'}
+                </span>
+            </div>` : ''}
+            ${c.offload_saved_ms ? `
+            <div class="case-meta-chip">
+                <span class="case-meta-label">Offload Saved</span>
+                <span class="case-meta-value mono" style="color: #10b981; font-weight: 600;">~${c.offload_saved_ms}ms</span>
+            </div>` : ''}
         </div>
 
         <div class="case-detail-verdict">
@@ -657,6 +784,356 @@ function closeModal() {
     if (modal) modal.classList.remove('open');
 }
 
+// ─── Compare Runs Logic ───────────────────────────────────────────────────
+
+state.compareData = null;
+state.currentDiscrepancies = [];
+state.compareFilter = 'all';
+
+function populateCompareSelects() {
+    const selA = $('#compare-run-a-select');
+    const selB = $('#compare-run-b-select');
+    if (!selA || !selB) return;
+
+    const completed = (state.runs || []).filter(r => r.status === 'completed');
+    if (completed.length === 0) {
+        selA.innerHTML = '<option value="">Tamamlanmış koşum bulunamadı</option>';
+        selB.innerHTML = '<option value="">Tamamlanmış koşum bulunamadı</option>';
+        return;
+    }
+
+    // Group runs by dataset
+    const datasets = {};
+    completed.forEach(r => {
+        const ds = r.dataset_name || 'Diğer';
+        if (!datasets[ds]) datasets[ds] = [];
+        datasets[ds].push(r);
+    });
+
+    let htmlA = '<option value="">Run A seçin (Baseline)...</option>';
+    for (const [dsName, runs] of Object.entries(datasets)) {
+        htmlA += `<optgroup label="Dataset: ${dsName} (${runs.length} koşum)">`;
+        runs.forEach(r => {
+            const dt = r.started_at ? new Date(r.started_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '';
+            htmlA += `<option value="${r.run_id}">${r.model_name} (${r.run_id}, F1: ${r.f1 || 0}%, ${dt})</option>`;
+        });
+        htmlA += `</optgroup>`;
+    }
+    selA.innerHTML = htmlA;
+
+    // Pick a default dataset that has >= 2 runs for immediate comparison readiness
+    let defaultRunA = null;
+    for (const runs of Object.values(datasets)) {
+        if (runs.length >= 2) {
+            defaultRunA = runs[0].run_id;
+            break;
+        }
+    }
+    if (!defaultRunA && completed.length > 0) {
+        defaultRunA = completed[0].run_id;
+    }
+
+    if (defaultRunA) {
+        selA.value = defaultRunA;
+    }
+
+    onCompareRunAChanged();
+}
+
+function onCompareRunAChanged() {
+    const selA = $('#compare-run-a-select');
+    const selB = $('#compare-run-b-select');
+    const btn = $('#btn-compare-execute');
+    if (!selA || !selB) return;
+
+    const runAId = selA.value;
+    if (!runAId) {
+        selB.innerHTML = '<option value="">Önce Run A seçin...</option>';
+        selB.disabled = true;
+        if (btn) btn.disabled = true;
+        return;
+    }
+
+    const runA = (state.runs || []).find(r => r.run_id === runAId);
+    if (!runA) return;
+
+    const targetDataset = runA.dataset_name;
+
+    // Filter candidates strictly to the SAME dataset and different run_id
+    const candidates = (state.runs || []).filter(r =>
+        r.status === 'completed' &&
+        r.dataset_name === targetDataset &&
+        r.run_id !== runAId
+    );
+
+    if (candidates.length === 0) {
+        selB.innerHTML = `<option value="">Bu dataset (${targetDataset}) için karşılaştırılacak başka model yok</option>`;
+        selB.disabled = true;
+        if (btn) btn.disabled = true;
+        return;
+    }
+
+    selB.disabled = false;
+    if (btn) btn.disabled = false;
+
+    selB.innerHTML = candidates.map(r => {
+        const dt = r.started_at ? new Date(r.started_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '';
+        return `<option value="${r.run_id}">${r.model_name} (${r.run_id}, F1: ${r.f1 || 0}%, ${dt})</option>`;
+    }).join('');
+
+    selB.selectedIndex = 0;
+}
+
+async function executeComparison() {
+    const selA = $('#compare-run-a-select');
+    const selB = $('#compare-run-b-select');
+    const runA = selA ? selA.value : '';
+    const runB = selB ? selB.value : '';
+
+    if (!runA || !runB) {
+        showToast('Lütfen karşılaştırmak için iki koşum seçin.', 'warn');
+        return;
+    }
+
+    const btn = $('#btn-compare-execute');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Hesaplanıyor...';
+    }
+
+    try {
+        const res = await fetch(`/api/runs/${runA}/compare/${runB}?filter=all&limit=250`);
+        const data = await res.json();
+        if (data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        state.compareData = data;
+        state.compareFilter = 'all';
+        renderComparisonResults(data);
+        showToast(`Karşılaştırma tamamlandı: ${data.agreement_stats.discrepant_verdicts} zıt karar bulundu.`, 'info');
+    } catch (e) {
+        showToast(`Karşılaştırma hatası: ${e.message}`, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '⚡ Karşılaştır';
+        }
+    }
+}
+
+function renderComparisonResults(data) {
+    const container = $('#compare-results-container');
+    if (!container) return;
+    container.style.display = 'block';
+
+    const rA = data.run_a;
+    const rB = data.run_b;
+    const ast = data.agreement_stats;
+
+    // Header info
+    setText('#compare-model-a-title', rA.model_name);
+    setText('#compare-run-a-id', rA.run_id);
+    setText('#compare-model-b-title', rB.model_name);
+    setText('#compare-run-b-id', rB.run_id);
+    setText('#compare-dataset-badge', `Dataset: ${rA.dataset_name} (${ast.total_common} ortak vaka)`);
+
+    const thA = $('#th-model-a');
+    const thB = $('#th-model-b');
+    if (thA) thA.textContent = `${rA.model_name}`;
+    if (thB) thB.textContent = `${rB.model_name}`;
+
+    // Calculate deltas
+    const f1Delta = (rB.f1 - rA.f1).toFixed(1);
+    const f1DeltaPrefix = f1Delta > 0 ? '+' : '';
+    const latDelta = (rB.avg_latency_ms - rA.avg_latency_ms).toFixed(2);
+    const latDeltaPrefix = latDelta > 0 ? '+' : '';
+
+    // Macro metric cards
+    const metricsHtml = [
+        { label: 'Mutabakat Oranı', value: ast.agreement_rate_pct, suffix: '%', cls: ast.agreement_rate_pct >= 80 ? 'good' : 'warn' },
+        { label: 'Ayrışan Kararlar', value: ast.discrepant_verdicts, suffix: ' vaka', cls: ast.discrepant_verdicts === 0 ? 'good' : 'info' },
+        { label: 'F1 Skoru Farkı (B - A)', value: `${f1DeltaPrefix}${f1Delta}`, suffix: '%', cls: f1Delta >= 0 ? 'good' : 'bad' },
+        { label: 'Ort. Gecikme Farkı (B - A)', value: `${latDeltaPrefix}${latDelta}`, suffix: 'ms', cls: latDelta <= 0 ? 'good' : 'warn' },
+        { label: 'A Kaçırdı ➔ B Yakaladı', value: ast.a_missed_b_caught, suffix: ' vaka', cls: 'good' },
+        { label: 'B Kaçırdı ➔ A Yakaladı', value: ast.b_missed_a_caught, suffix: ' vaka', cls: 'bad' },
+    ].map(m => `
+        <div class="metric-card">
+            <div class="metric-label">${m.label}</div>
+            <div class="metric-value ${m.cls}">${m.value}<span class="metric-suffix">${m.suffix}</span></div>
+        </div>
+    `).join('');
+
+    $('#compare-metrics-grid').innerHTML = metricsHtml;
+
+    // Filter counters
+    setText('#count-disc-all', ast.discrepant_verdicts);
+    setText('#count-disc-b-better', ast.a_missed_b_caught);
+    setText('#count-disc-a-better', ast.b_missed_a_caught);
+    setText('#count-disc-fp', (ast.discrepant_verdicts - ast.a_missed_b_caught - ast.b_missed_a_caught));
+
+    // Render discrepancy rows
+    renderDiscrepancyRows(data.discrepancies || []);
+}
+
+function renderDiscrepancyRows(discrepancies) {
+    state.currentDiscrepancies = discrepancies;
+    const tbody = $('#discrepancy-tbody');
+    if (!tbody) return;
+
+    if (discrepancies.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="empty-state" style="padding: 30px; text-align: center; color: var(--text-tertiary);">
+            Bu filtre için herhangi bir uyuşmazlık bulunamadı. İki model bu vakalarda tamamen mutabık!
+        </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = discrepancies.map((d, idx) => {
+        const aBlocked = d.run_a.predicted_blocked;
+        const bBlocked = d.run_b.predicted_blocked;
+        const aClass = d.run_a.correct ? 'case-correct' : 'case-incorrect';
+        const bClass = d.run_b.correct ? 'case-correct' : 'case-incorrect';
+
+        const latDiff = d.latency_diff_ms;
+        const latDiffStr = (latDiff > 0 ? `+${latDiff}` : `${latDiff}`) + 'ms';
+        const latClass = latDiff > 0 ? 'text-amber-400' : 'text-emerald-400';
+
+        return `
+            <tr class="case-row" onclick="showDiscrepancyDetail(${idx})" title="Tıkla: detaylı karşılaştırmayı ve payload'u gör">
+                <td class="mono font-semibold">${d.case_id}</td>
+                <td><span class="badge-domain">${d.domain}</span></td>
+                <td><span class="mono text-xs" style="color: #818cf8;">${d.analysis_tier}</span></td>
+                <td>${d.is_malicious ? '🔴 Zararlı' : '🟢 Meşru'}</td>
+                <td>
+                    <span class="${aClass}" style="font-weight: 600;">${aBlocked ? '🛑 Blocked' : '✅ Allowed'}</span>
+                    <span class="mono text-xs" style="opacity: 0.7;">(${d.run_a.decided_by})</span>
+                </td>
+                <td>
+                    <span class="${bClass}" style="font-weight: 600;">${bBlocked ? '🛑 Blocked' : '✅ Allowed'}</span>
+                    <span class="mono text-xs" style="opacity: 0.7;">(${d.run_b.decided_by})</span>
+                </td>
+                <td class="mono text-sm ${latClass}">${latDiffStr}</td>
+                <td class="case-expand-icon">▸</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function filterDiscrepancies(filterType) {
+    if (!state.compareData) return;
+    state.compareFilter = filterType;
+
+    $$('.case-filters button[data-compare-filter]').forEach(b => {
+        b.classList.toggle('active', b.dataset.compareFilter === filterType);
+    });
+
+    const runA = state.compareData.run_a.run_id;
+    const runB = state.compareData.run_b.run_id;
+
+    try {
+        const res = await fetch(`/api/runs/${runA}/compare/${runB}?filter=${filterType}&limit=250`);
+        const data = await res.json();
+        renderDiscrepancyRows(data.discrepancies || []);
+    } catch (e) {
+        showToast(`Filtreleme hatası: ${e.message}`, 'error');
+    }
+}
+
+function showDiscrepancyDetail(idx) {
+    const d = state.currentDiscrepancies[idx];
+    if (!d || !state.compareData) return;
+
+    const detail = $('#case-detail-drawer');
+    if (!detail) return;
+
+    const rA = state.compareData.run_a;
+    const rB = state.compareData.run_b;
+
+    detail.innerHTML = `
+        <div class="case-detail-header">
+            <div class="case-detail-title">
+                <span style="font-size: 1.2rem;">⚖️</span>
+                <span>${d.case_id}</span>
+            </div>
+            <button class="modal-close" onclick="closeCaseDetail()">✕</button>
+        </div>
+
+        <div class="case-detail-meta">
+            <div class="case-meta-chip">
+                <span class="case-meta-label">Source</span>
+                <span class="case-meta-value">${d.source || '—'}</span>
+            </div>
+            <div class="case-meta-chip">
+                <span class="case-meta-label">Domain</span>
+                <span class="case-meta-value">${d.domain}</span>
+            </div>
+            <div class="case-meta-chip">
+                <span class="case-meta-label">Tier</span>
+                <span class="case-meta-value mono" style="color: #6366f1; font-weight: 600;">${d.analysis_tier}</span>
+            </div>
+            <div class="case-meta-chip">
+                <span class="case-meta-label">CWE</span>
+                <span class="case-meta-value">${d.cwe || '—'}</span>
+            </div>
+            <div class="case-meta-chip">
+                <span class="case-meta-label">Tool</span>
+                <span class="case-meta-value mono">${d.tool_name}</span>
+            </div>
+            <div class="case-meta-chip">
+                <span class="case-meta-label">Expected</span>
+                <span class="case-meta-value font-semibold">${d.is_malicious ? '🔴 Zararlı (Block)' : '🟢 Meşru (Allow)'}</span>
+            </div>
+        </div>
+
+        <!-- Side-by-Side Model Comparison -->
+        <div style="margin-top: var(--space-4); margin-bottom: var(--space-4);">
+            <div class="case-section-title" style="margin-bottom: var(--space-2);">⚔️ Model Karşılaştırması</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+                <!-- Model A Card -->
+                <div style="padding: 12px; border-radius: var(--radius-md); background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25);">
+                    <div class="font-bold text-xs" style="color: #f59e0b; margin-bottom: 6px; text-transform: uppercase;">Run A: ${rA.model_name}</div>
+                    <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 4px;">
+                        ${d.run_a.predicted_blocked ? '🛑 BLOCKED' : '✅ ALLOWED'}
+                        <span>${d.run_a.correct ? '✓' : '✕'}</span>
+                    </div>
+                    <div class="text-xs mono text-muted">Motor: ${d.run_a.decided_by}</div>
+                    <div class="text-xs mono text-muted">Gecikme: ${d.run_a.latency_ms}ms</div>
+                    ${d.run_a.verdict_detail ? `<div class="text-xs mono" style="margin-top: 4px; color: var(--text-secondary);">${escapeHtml(d.run_a.verdict_detail)}</div>` : ''}
+                </div>
+
+                <!-- Model B Card -->
+                <div style="padding: 12px; border-radius: var(--radius-md); background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25);">
+                    <div class="font-bold text-xs" style="color: #3b82f6; margin-bottom: 6px; text-transform: uppercase;">Run B: ${rB.model_name}</div>
+                    <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 4px;">
+                        ${d.run_b.predicted_blocked ? '🛑 BLOCKED' : '✅ ALLOWED'}
+                        <span>${d.run_b.correct ? '✓' : '✕'}</span>
+                    </div>
+                    <div class="text-xs mono text-muted">Motor: ${d.run_b.decided_by}</div>
+                    <div class="text-xs mono text-muted">Gecikme: ${d.run_b.latency_ms}ms</div>
+                    ${d.run_b.verdict_detail ? `<div class="text-xs mono" style="margin-top: 4px; color: var(--text-secondary);">${escapeHtml(d.run_b.verdict_detail)}</div>` : ''}
+                </div>
+            </div>
+        </div>
+
+        ${d.context ? `
+        <div class="case-detail-section">
+            <div class="case-section-title">📋 Context</div>
+            <div class="case-context-box">${escapeHtml(d.context)}</div>
+        </div>` : ''}
+
+        <div class="case-detail-section">
+            <div class="flex items-center justify-between" style="margin-bottom: var(--space-2);">
+                <div class="case-section-title" style="margin-bottom: 0;">📦 Tool Arguments (Payload)</div>
+                <button class="copy-payload-btn" onclick="copyPayload(this)" title="Payload'ı panoya kopyala">📋 Kopyala</button>
+            </div>
+            <pre class="case-payload-box"><code>${syntaxHighlight(d.tool_arguments || '{}')}</code></pre>
+        </div>
+    `;
+
+    detail.classList.add('open');
+}
+
 // ─── Navigation ─────────────────────────────────────────────────────────────
 
 function switchPage(page) {
@@ -672,6 +1149,8 @@ function switchPage(page) {
 
     if (page === 'history') {
         loadRuns();
+    } else if (page === 'compare') {
+        loadRuns().then(() => populateCompareSelects());
     }
 }
 
@@ -731,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Dataset select hint update
+    // Dataset select hint and tier counts update
     const datasetSelect = $('#dataset-select');
     if (datasetSelect) {
         datasetSelect.addEventListener('change', () => {
@@ -742,8 +1221,25 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (hint) {
                 hint.textContent = '';
             }
+            updateTierCounts(ds);
         });
     }
+
+    // Model select change handler
+    const modelSelect = $('#model-select');
+    if (modelSelect) {
+        modelSelect.addEventListener('change', onModelChanged);
+    }
+
+    // Tier scope radio change listeners
+    document.querySelectorAll('input[name="tier_scope"]').forEach(r => {
+        r.addEventListener('change', onTierRadioChanged);
+    });
+
+    // L1 Fail-fast radio change listeners
+    document.querySelectorAll('input[name="enable_l1"]').forEach(r => {
+        r.addEventListener('change', onL1RadioChanged);
+    });
 
     // WebSocket keepalive
     setInterval(() => {

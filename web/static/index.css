@@ -339,6 +339,157 @@ body::before {
     font-family: var(--font-mono);
 }
 
+/* ─── Tier Scope Radio Pills ─────────────────────────────────────────────── */
+.tier-radio-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+}
+
+.tier-radio-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-2) var(--space-1);
+    background: var(--bg-input);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    position: relative;
+    user-select: none;
+    text-align: center;
+}
+
+.tier-radio-btn input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.tier-radio-btn:hover {
+    border-color: var(--border-subtle);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tier-radio-btn.active {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 12px var(--accent-blue-glow);
+}
+
+.tier-radio-btn .tier-icon {
+    font-size: 1.1rem;
+    margin-bottom: 2px;
+}
+
+.tier-radio-btn .tier-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.tier-radio-btn .tier-count {
+    font-size: 0.7rem;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    margin-top: 1px;
+}
+
+.tier-radio-btn.active .tier-count {
+    color: var(--accent-cyan);
+}
+
+/* ─── L1 Fail-Fast Radio Cards ───────────────────────────────────────────── */
+.l1-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
+}
+
+.l1-radio-card {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: var(--bg-input);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    position: relative;
+    user-select: none;
+}
+
+.l1-radio-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.l1-radio-card:hover {
+    border-color: var(--border-subtle);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.l1-radio-card.active {
+    background: rgba(59, 130, 246, 0.12);
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+}
+
+.l1-radio-card.disabled {
+    opacity: 0.45;
+    pointer-events: none;
+    filter: grayscale(0.5);
+}
+
+.l1-radio-indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--border-subtle);
+    margin-top: 2px;
+    flex-shrink: 0;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.l1-radio-card.active .l1-radio-indicator {
+    border-color: var(--accent-blue);
+}
+
+.l1-radio-card.active .l1-radio-indicator::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+    box-shadow: 0 0 6px var(--accent-blue-glow);
+}
+
+.l1-radio-info {
+    flex: 1;
+}
+
+.l1-radio-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.l1-radio-sub {
+    font-size: 0.72rem;
+    color: var(--text-tertiary);
+    line-height: 1.35;
+}
+
 .btn {
     display: inline-flex;
     align-items: center;

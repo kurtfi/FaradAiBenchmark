@@ -19,6 +19,7 @@
 
     <nav class="nav">
         <button class="nav-btn active" data-page="dashboard">Dashboard</button>
+        <button class="nav-btn" data-page="compare">⚖️ Compare Runs</button>
         <button class="nav-btn" data-page="history">History</button>
     </nav>
 
@@ -51,14 +52,64 @@
                     <div class="form-hint" id="dataset-hint"></div>
                 </div>
 
+                <!-- NEW: Veri Kapsamı (Tier Selection) -->
+                <div class="form-group">
+                    <label class="form-label">Veri Kapsamı (Analysis Tier)</label>
+                    <div class="tier-radio-group">
+                        <label class="tier-radio-btn active" id="tier-btn-all">
+                            <input type="radio" name="tier_scope" value="all" checked>
+                            <span class="tier-icon">🌐</span>
+                            <span class="tier-label">All</span>
+                            <span class="tier-count" id="tier-count-all">—</span>
+                        </label>
+                        <label class="tier-radio-btn" id="tier-btn-static">
+                            <input type="radio" name="tier_scope" value="static">
+                            <span class="tier-icon">⚡</span>
+                            <span class="tier-label">Static</span>
+                            <span class="tier-count" id="tier-count-static">—</span>
+                        </label>
+                        <label class="tier-radio-btn" id="tier-btn-semantic">
+                            <input type="radio" name="tier_scope" value="semantic">
+                            <span class="tier-icon">🧠</span>
+                            <span class="tier-label">Semantik</span>
+                            <span class="tier-count" id="tier-count-semantic">—</span>
+                        </label>
+                    </div>
+                    <div class="form-hint" id="tier-scope-desc">Tüm veri kümesi (Statik regex/DLP + Semantik LLM senaryoları).</div>
+                </div>
+
                 <div class="form-group">
                     <label class="form-label" for="model-select">Model Adapter</label>
                     <select class="form-select" id="model-select">
                         <option value="">Loading models...</option>
                     </select>
+                    <div class="form-hint" id="model-hint"></div>
                 </div>
 
-                <button class="btn btn-primary" id="btn-start">
+                <!-- NEW: L1 Statik Kural Filtresi (Fail-Fast) Radio Buttons -->
+                <div class="form-group" id="l1-filter-container">
+                    <label class="form-label">L1 Statik Kural Filtresi (Fail-Fast)</label>
+                    <div class="l1-radio-group">
+                        <label class="l1-radio-card active" id="l1-card-enable">
+                            <input type="radio" name="enable_l1" value="true" checked>
+                            <div class="l1-radio-indicator"></div>
+                            <div class="l1-radio-info">
+                                <div class="l1-radio-title">⚡ L1 Statik Kural Dahil Et (Fail-Fast)</div>
+                                <div class="l1-radio-sub">Açık regex ve DLP ataklarını mikrosaniyede engeller, model yükünü hafifletir.</div>
+                            </div>
+                        </label>
+                        <label class="l1-radio-card" id="l1-card-disable">
+                            <input type="radio" name="enable_l1" value="false">
+                            <div class="l1-radio-indicator"></div>
+                            <div class="l1-radio-info">
+                                <div class="l1-radio-title">🚫 L1 Olmasın (Saf Model)</div>
+                                <div class="l1-radio-sub">Statik kurallar bypass edilir; tüm girdiler doğrudan seçilen modele iletilir.</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" id="btn-start" style="margin-top: var(--space-4);">
                     🚀 Start Benchmark
                 </button>
 
@@ -194,6 +245,106 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- ─── Compare Runs Page ────────────────────────────────── -->
+    <div class="page" id="page-compare">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">⚖️ Compare Runs & Discrepancy Analyzer</h1>
+                <p class="page-subtitle">İki benchmark koşumunu karşılaştırın, mutabakat oranını ve ayrışan (zıt) güvenlik kararlarını analiz edin.</p>
+            </div>
+        </div>
+
+        <!-- Run Selection Card -->
+        <div class="card" style="margin-bottom: var(--space-6);">
+            <div class="card-title"><span class="icon">🔍</span> Select Benchmark Runs to Compare</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--space-4); align-items: flex-end;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="compare-run-a-select">Run A (Reference / Baseline)</label>
+                    <select class="form-select" id="compare-run-a-select" onchange="onCompareRunAChanged()">
+                        <option value="">Select Run A...</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="compare-run-b-select">Run B (Same Dataset Only)</label>
+                    <select class="form-select" id="compare-run-b-select">
+                        <option value="">Select Run B...</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" id="btn-compare-execute" onclick="executeComparison()">
+                    ⚡ Karşılaştır
+                </button>
+            </div>
+        </div>
+
+        <!-- Comparison Results Area (hidden until comparison is performed) -->
+        <div id="compare-results-container" style="display: none;">
+
+            <!-- Overview Header Card -->
+            <div class="card" style="margin-bottom: var(--space-6); background: rgba(99, 102, 241, 0.04); border-color: rgba(99, 102, 241, 0.2);">
+                <div class="flex items-center justify-between" style="flex-wrap: wrap; gap: var(--space-4);">
+                    <div style="display: flex; align-items: center; gap: var(--space-4);">
+                        <div style="padding: 10px 16px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-md);">
+                            <span class="text-xs text-muted" style="text-transform: uppercase;">Run A</span>
+                            <div class="font-bold mono" id="compare-model-a-title" style="color: #f59e0b; font-size: 1.1rem;">Model A</div>
+                            <span class="text-xs text-muted mono" id="compare-run-a-id">run-...</span>
+                        </div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: var(--text-tertiary);">VS</div>
+                        <div style="padding: 10px 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md);">
+                            <span class="text-xs text-muted" style="text-transform: uppercase;">Run B</span>
+                            <div class="font-bold mono" id="compare-model-b-title" style="color: #3b82f6; font-size: 1.1rem;">Model B</div>
+                            <span class="text-xs text-muted mono" id="compare-run-b-id">run-...</span>
+                        </div>
+                    </div>
+                    <div class="text-sm text-muted" id="compare-dataset-badge">Dataset: —</div>
+                </div>
+            </div>
+
+            <!-- Macro Metrics Grid -->
+            <div class="metrics-grid" id="compare-metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: var(--space-6);">
+                <!-- Dynamic cards populated by app.js -->
+            </div>
+
+            <!-- Discrepancy Table Card -->
+            <div class="card">
+                <div class="case-header-row">
+                    <div>
+                        <div class="card-title" style="margin-bottom: 2px;"><span class="icon">⚡</span> Discrepancy Diff Explorer</div>
+                        <p class="text-sm text-muted">İki modelin birbirine zıt karar verdiği test vakaları (satıra tıklayarak payload'u inceleyin)</p>
+                    </div>
+                </div>
+
+                <!-- Discrepancy Filter Buttons -->
+                <div class="case-filters" style="margin-top: var(--space-3); margin-bottom: var(--space-4);">
+                    <button class="case-filter-chip active" data-compare-filter="all" onclick="filterDiscrepancies('all')">Tüm Zıt Kararlar (<span id="count-disc-all">0</span>)</button>
+                    <button class="case-filter-chip filter-correct" data-compare-filter="a_missed_b_caught" onclick="filterDiscrepancies('a_missed_b_caught')">A Kaçırdı ➔ B Yakaladı (<span id="count-disc-b-better">0</span>)</button>
+                    <button class="case-filter-chip filter-warn" data-compare-filter="b_missed_a_caught" onclick="filterDiscrepancies('b_missed_a_caught')">B Kaçırdı ➔ A Yakaladı (<span id="count-disc-a-better">0</span>)</button>
+                    <button class="case-filter-chip filter-fp" data-compare-filter="fp_diff" onclick="filterDiscrepancies('fp_diff')">False Positive Ayrışması (<span id="count-disc-fp">0</span>)</button>
+                </div>
+
+                <div class="table-container" style="max-height: 520px; overflow-y: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Domain</th>
+                                <th>Tier</th>
+                                <th>Expected</th>
+                                <th id="th-model-a">Model A</th>
+                                <th id="th-model-b">Model B</th>
+                                <th>Latency Delta</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="discrepancy-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     </div>
 
