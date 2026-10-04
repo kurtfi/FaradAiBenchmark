@@ -57,6 +57,20 @@ def _get_agent():
     return agent
 
 
+def unload():
+    """Unload the Laya MLX model and free Metal unified memory."""
+    global agent, _agent_loaded
+    agent = None
+    _agent_loaded = False
+    import gc
+    gc.collect()
+    try:
+        import mlx.core as mx
+        mx.clear_cache()
+    except Exception:
+        pass
+
+
 @mcp.tool()
 def inspect_tool_call(
     tool_name: str,

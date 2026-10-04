@@ -237,6 +237,10 @@ def evaluate_model_on_cases(
                 str(context or "")
             ))
 
+            # Flush Metal cache periodically to prevent unified memory accumulation
+            if len(case_summary_list) % 50 == 0:
+                flush_unified_memory()
+
         total = len(records)
         duration_secs = time.perf_counter() - t_start
         completed_at = datetime.now(UTC)

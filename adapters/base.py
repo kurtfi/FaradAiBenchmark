@@ -58,6 +58,15 @@ class BaseModelAdapter(ABC):
             self.load()
 
     @staticmethod
+    def configure_memory_limits(cache_limit_mb: int = 1024) -> None:
+        """Cap MLX Metal cache allocator to avoid claiming all system RAM."""
+        try:
+            import mlx.core as mx
+            mx.set_cache_limit(cache_limit_mb * 1024 * 1024)
+        except Exception:  # noqa: BLE001
+            pass
+
+    @staticmethod
     def flush_unified_memory() -> None:
         """Best-effort release of Apple Silicon unified memory across frameworks."""
         import gc
@@ -114,3 +123,7 @@ class BaseModelAdapter(ABC):
             return json.dumps(tool_arguments, ensure_ascii=False, sort_keys=True)
         except (TypeError, ValueError, OverflowError):
             return str(tool_arguments)
+
+
+# Preemptively cap MLX Metal cache allocator to 1 GB (prevents 45+ GB hoarding)
+BaseModelAdapter.configure_memory_limits(1024)

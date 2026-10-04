@@ -25,6 +25,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
+from adapters.base import BaseModelAdapter
 
 # ─── Path Setup ──────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ WEB_DIR = Path(__file__).resolve().parent
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    BaseModelAdapter.configure_memory_limits(1024)
     yield
 
 app = FastAPI(title="Faraday Laya Guard", version="1.0.0", lifespan=lifespan)
@@ -369,6 +371,10 @@ async def execute_benchmark(run_id: str, dataset_path: str, model_name: str, tie
                     "elapsed_secs": round(elapsed, 1),
                 })
 
+                # Flush Metal/MPS cache periodically to prevent unified memory accumulation
+                if (i + 1) % 50 == 0:
+                    BaseModelAdapter.flush_unified_memory()
+
                 # Yield control to event loop
                 await asyncio.sleep(0)
 
@@ -441,6 +447,7 @@ async def execute_benchmark(run_id: str, dataset_path: str, model_name: str, tie
         # If the adapter is a HybridCascade wrapping an L2 adapter, unload that too
         if hasattr(adapter, "l2_adapter") and hasattr(adapter.l2_adapter, "unload"):
             adapter.l2_adapter.unload()
+        BaseModelAdapter.flush_unified_memory()
 
 
 # ─── API Routes ──────────────────────────────────────────────────────────────
