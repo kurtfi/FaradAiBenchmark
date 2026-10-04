@@ -28,6 +28,56 @@ class EvaluationResult:
 class BaseModelAdapter(ABC):
     """Abstract base class for all security model adapters (Laya, Qwen, Granite, etc.)."""
 
+    _is_loaded: bool = False
+
+    @property
+    def is_loaded(self) -> bool:
+        """Whether model weights are currently resident in memory."""
+        return bool(self._is_loaded or getattr(self, "model", None) is not None)
+
+    def load(self) -> None:
+        """Load model weights into memory. Override in subclasses.
+
+        Subclasses must set ``self._is_loaded = True`` at the end of a
+        successful load.  The default implementation is a no-op so that
+        lightweight adapters (mocks, heuristic-only) work without overriding.
+        """
+
+    def unload(self) -> None:
+        """Release model weights and reclaim unified / GPU memory.
+
+        Subclasses should set heavy attributes (model, tokenizer, etc.) to
+        ``None``, set ``self._is_loaded = False``, then call
+        ``self.flush_unified_memory()`` to force garbage collection and
+        clear hardware caches.
+        """
+
+    def ensure_loaded(self) -> None:
+        """Lazily load model weights on first use."""
+        if not self.is_loaded:
+            self.load()
+
+    @staticmethod
+    def flush_unified_memory() -> None:
+        """Best-effort release of Apple Silicon unified memory across frameworks."""
+        import gc
+        gc.collect()
+
+        # MLX Metal cache
+        try:
+            import mlx.core as mx
+            mx.clear_cache()
+        except Exception:  # noqa: BLE001
+            pass
+
+        # PyTorch MPS cache
+        try:
+            import torch
+            if hasattr(torch, "mps") and hasattr(torch.mps, "empty_cache"):
+                torch.mps.empty_cache()
+        except Exception:  # noqa: BLE001
+            pass
+
     @abstractmethod
     def evaluate(
         self,

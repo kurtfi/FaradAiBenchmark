@@ -259,178 +259,188 @@ async def execute_benchmark(run_id: str, dataset_path: str, model_name: str, tie
     }
     start_time = time.time()
 
-    for i, row in enumerate(records):
-        case_id, source, domain, tier, cwe, tool_name, args_raw, context, is_malicious = row
+    try:
+        for i, row in enumerate(records):
+            case_id, source, domain, tier, cwe, tool_name, args_raw, context, is_malicious = row
 
-        try:
-            args = json.loads(args_raw) if isinstance(args_raw, str) else (args_raw or {})
-        except Exception:
-            args = {"raw": str(args_raw)}
+            try:
+                args = json.loads(args_raw) if isinstance(args_raw, str) else (args_raw or {})
+            except Exception:
+                args = {"raw": str(args_raw)}
 
-        t0 = time.perf_counter()
-        result = adapter.evaluate(tool_name, args, context or "")
-        dt_ms = (time.perf_counter() - t0) * 1000
-        latencies.append(dt_ms)
+            t0 = time.perf_counter()
+            result = adapter.evaluate(tool_name, args, context or "")
+            dt_ms = (time.perf_counter() - t0) * 1000
+            latencies.append(dt_ms)
 
-        pred_blocked = result.get("is_blocked", False)
+            pred_blocked = result.get("is_blocked", False)
 
-        if domain not in category_stats:
-            category_stats[domain] = {"total": 0, "correct": 0}
-        category_stats[domain]["total"] += 1
+            if domain not in category_stats:
+                category_stats[domain] = {"total": 0, "correct": 0}
+            category_stats[domain]["total"] += 1
 
-        verdict_correct = False
-        if is_malicious:
-            if pred_blocked:
-                tp += 1
-                verdict_correct = True
-                category_stats[domain]["correct"] += 1
+            verdict_correct = False
+            if is_malicious:
+                if pred_blocked:
+                    tp += 1
+                    verdict_correct = True
+                    category_stats[domain]["correct"] += 1
+                else:
+                    fn += 1
             else:
-                fn += 1
-        else:
-            if pred_blocked:
-                fp += 1
-            else:
-                tn += 1
-                verdict_correct = True
-                category_stats[domain]["correct"] += 1
+                if pred_blocked:
+                    fp += 1
+                else:
+                    tn += 1
+                    verdict_correct = True
+                    category_stats[domain]["correct"] += 1
 
-        args_display = json.dumps(args, ensure_ascii=False, indent=2)
-        if len(args_display) > 2500:
-            args_display = args_display[:2500] + "\n... (truncated)"
+            args_display = json.dumps(args, ensure_ascii=False, indent=2)
+            if len(args_display) > 2500:
+                args_display = args_display[:2500] + "\n... (truncated)"
 
-        decided_by_engine = result.get("decided_by", "L1" if "l1" in model_name else "L2")
-        offload_saved = float(result.get("offload_saved_ms", 0.0) or 0.0)
+            decided_by_engine = result.get("decided_by", "L1" if "l1" in model_name else "L2")
+            offload_saved = float(result.get("offload_saved_ms", 0.0) or 0.0)
 
-        # Collect for relational bulk storage (every single evaluation)
-        eval_batch["run_id"].append(run_id)
-        eval_batch["case_id"].append(str(case_id))
-        eval_batch["source"].append(str(source or ""))
-        eval_batch["domain"].append(str(domain or "UNKNOWN"))
-        eval_batch["analysis_tier"].append(str(tier or "STATIC_CAPABLE"))
-        eval_batch["cwe"].append(str(cwe or ""))
-        eval_batch["tool_name"].append(str(tool_name or ""))
-        eval_batch["is_malicious"].append(bool(is_malicious))
-        eval_batch["predicted_blocked"].append(bool(pred_blocked))
-        eval_batch["correct"].append(bool(verdict_correct))
-        eval_batch["decided_by"].append(str(decided_by_engine))
-        eval_batch["confidence"].append(float(result.get("confidence", 0.0) or 0.0))
-        eval_batch["latency_ms"].append(round(dt_ms, 2))
-        eval_batch["offload_saved_ms"].append(offload_saved)
-        eval_batch["verdict_detail"].append(str(result.get("verdict", "")))
-        eval_batch["tool_arguments"].append(args_display)
-        eval_batch["context"].append(str(context or ""))
+            # Collect for relational bulk storage (every single evaluation)
+            eval_batch["run_id"].append(run_id)
+            eval_batch["case_id"].append(str(case_id))
+            eval_batch["source"].append(str(source or ""))
+            eval_batch["domain"].append(str(domain or "UNKNOWN"))
+            eval_batch["analysis_tier"].append(str(tier or "STATIC_CAPABLE"))
+            eval_batch["cwe"].append(str(cwe or ""))
+            eval_batch["tool_name"].append(str(tool_name or ""))
+            eval_batch["is_malicious"].append(bool(is_malicious))
+            eval_batch["predicted_blocked"].append(bool(pred_blocked))
+            eval_batch["correct"].append(bool(verdict_correct))
+            eval_batch["decided_by"].append(str(decided_by_engine))
+            eval_batch["confidence"].append(float(result.get("confidence", 0.0) or 0.0))
+            eval_batch["latency_ms"].append(round(dt_ms, 2))
+            eval_batch["offload_saved_ms"].append(offload_saved)
+            eval_batch["verdict_detail"].append(str(result.get("verdict", "")))
+            eval_batch["tool_arguments"].append(args_display)
+            eval_batch["context"].append(str(context or ""))
 
-        # Store sample in memory for immediate access
-        record_this = (not verdict_correct) or (len(case_results) < 200)
-        if record_this and len(case_results) < 300:
-            case_results.append({
-                "id": case_id,
-                "source": source,
-                "domain": domain,
-                "analysis_tier": tier or "STATIC_CAPABLE",
-                "cwe": cwe,
-                "tool_name": tool_name,
-                "tool_arguments": args_display,
-                "context": context or "",
-                "is_malicious": is_malicious,
-                "predicted_blocked": pred_blocked,
-                "correct": verdict_correct,
-                "confidence": result.get("confidence", 0),
-                "latency_ms": round(dt_ms, 2),
-                "verdict_detail": result.get("verdict", ""),
-                "decided_by": decided_by_engine,
-                "offload_saved_ms": offload_saved,
-            })
+            # Store sample in memory for immediate access
+            record_this = (not verdict_correct) or (len(case_results) < 200)
+            if record_this and len(case_results) < 300:
+                case_results.append({
+                    "id": case_id,
+                    "source": source,
+                    "domain": domain,
+                    "analysis_tier": tier or "STATIC_CAPABLE",
+                    "cwe": cwe,
+                    "tool_name": tool_name,
+                    "tool_arguments": args_display,
+                    "context": context or "",
+                    "is_malicious": is_malicious,
+                    "predicted_blocked": pred_blocked,
+                    "correct": verdict_correct,
+                    "confidence": result.get("confidence", 0),
+                    "latency_ms": round(dt_ms, 2),
+                    "verdict_detail": result.get("verdict", ""),
+                    "decided_by": decided_by_engine,
+                    "offload_saved_ms": offload_saved,
+                })
 
-        # Broadcast progress every 10 cases or on last
-        if (i + 1) % 10 == 0 or (i + 1) == total:
-            evaluated = i + 1
-            elapsed = time.time() - start_time
-            throughput = evaluated / elapsed if elapsed > 0 else 0
+            # Broadcast progress every 10 cases or on last
+            if (i + 1) % 10 == 0 or (i + 1) == total:
+                evaluated = i + 1
+                elapsed = time.time() - start_time
+                throughput = evaluated / elapsed if elapsed > 0 else 0
 
-            cur_acc = ((tp + tn) / evaluated) * 100 if evaluated > 0 else 0
-            cur_prec = (tp / (tp + fp)) * 100 if (tp + fp) > 0 else 0
-            cur_rec = (tp / (tp + fn)) * 100 if (tp + fn) > 0 else 0
-            cur_f1 = (2 * cur_prec * cur_rec / (cur_prec + cur_rec)) if (cur_prec + cur_rec) > 0 else 0
+                cur_acc = ((tp + tn) / evaluated) * 100 if evaluated > 0 else 0
+                cur_prec = (tp / (tp + fp)) * 100 if (tp + fp) > 0 else 0
+                cur_rec = (tp / (tp + fn)) * 100 if (tp + fn) > 0 else 0
+                cur_f1 = (2 * cur_prec * cur_rec / (cur_prec + cur_rec)) if (cur_prec + cur_rec) > 0 else 0
 
-            await broadcast({
-                "type": "progress",
-                "run_id": run_id,
-                "evaluated": evaluated,
-                "total": total,
-                "pct": round((evaluated / total) * 100, 1),
-                "throughput": round(throughput, 1),
-                "tp": tp, "tn": tn, "fp": fp, "fn": fn,
-                "accuracy": round(cur_acc, 2),
-                "precision": round(cur_prec, 2),
-                "recall": round(cur_rec, 2),
-                "f1": round(cur_f1, 2),
-                "elapsed_secs": round(elapsed, 1),
-            })
+                await broadcast({
+                    "type": "progress",
+                    "run_id": run_id,
+                    "evaluated": evaluated,
+                    "total": total,
+                    "pct": round((evaluated / total) * 100, 1),
+                    "throughput": round(throughput, 1),
+                    "tp": tp, "tn": tn, "fp": fp, "fn": fn,
+                    "accuracy": round(cur_acc, 2),
+                    "precision": round(cur_prec, 2),
+                    "recall": round(cur_rec, 2),
+                    "f1": round(cur_f1, 2),
+                    "elapsed_secs": round(elapsed, 1),
+                })
 
-            # Yield control to event loop
-            await asyncio.sleep(0)
+                # Yield control to event loop
+                await asyncio.sleep(0)
 
-    # Final metrics
-    elapsed_total = time.time() - start_time
-    accuracy = ((tp + tn) / total) * 100 if total > 0 else 0
-    precision = (tp / (tp + fp)) * 100 if (tp + fp) > 0 else 0
-    recall = (tp / (tp + fn)) * 100 if (tp + fn) > 0 else 0
-    f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0
-    fpr = (fp / (fp + tn)) * 100 if (fp + tn) > 0 else 0
-    avg_lat = sum(latencies) / len(latencies) if latencies else 0
-    latencies.sort()
-    p95_lat = latencies[int(len(latencies) * 0.95)] if latencies else 0
+        # Final metrics
+        elapsed_total = time.time() - start_time
+        accuracy = ((tp + tn) / total) * 100 if total > 0 else 0
+        precision = (tp / (tp + fp)) * 100 if (tp + fp) > 0 else 0
+        recall = (tp / (tp + fn)) * 100 if (tp + fn) > 0 else 0
+        f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0
+        fpr = (fp / (fp + tn)) * 100 if (fp + tn) > 0 else 0
+        avg_lat = sum(latencies) / len(latencies) if latencies else 0
+        latencies.sort()
+        p95_lat = latencies[int(len(latencies) * 0.95)] if latencies else 0
 
-    # High-speed PyArrow bulk insert into relational run_case_evaluations
-    con = get_db()
-    if eval_batch["case_id"]:
-        eval_table = pa.Table.from_pydict(eval_batch)
-        con.register("eval_table_view", eval_table)
+        # High-speed PyArrow bulk insert into relational run_case_evaluations
+        con = get_db()
+        if eval_batch["case_id"]:
+            eval_table = pa.Table.from_pydict(eval_batch)
+            con.register("eval_table_view", eval_table)
+            con.execute("""
+                INSERT OR REPLACE INTO run_case_evaluations
+                SELECT * FROM eval_table_view
+            """)
+
+        # Persist summary metrics to run_history
         con.execute("""
-            INSERT OR REPLACE INTO run_case_evaluations
-            SELECT * FROM eval_table_view
-        """)
+            UPDATE run_history SET
+                status = 'completed',
+                evaluated = ?,
+                tp = ?, tn = ?, fp = ?, fn = ?,
+                accuracy = ?, precision_val = ?, recall_val = ?, f1_score = ?,
+                fpr = ?, avg_latency_ms = ?, p95_latency_ms = ?,
+                category_stats = ?, case_results = ?,
+                completed_at = CURRENT_TIMESTAMP,
+                duration_secs = ?
+            WHERE run_id = ?
+        """, [
+            total, tp, tn, fp, fn,
+            round(accuracy, 2), round(precision, 2), round(recall, 2), round(f1, 2),
+            round(fpr, 2), round(avg_lat, 2), round(p95_lat, 2),
+            json.dumps(category_stats), json.dumps(case_results[:100]),
+            round(elapsed_total, 2), run_id
+        ])
+        con.close()
 
-    # Persist summary metrics to run_history
-    con.execute("""
-        UPDATE run_history SET
-            status = 'completed',
-            evaluated = ?,
-            tp = ?, tn = ?, fp = ?, fn = ?,
-            accuracy = ?, precision_val = ?, recall_val = ?, f1_score = ?,
-            fpr = ?, avg_latency_ms = ?, p95_latency_ms = ?,
-            category_stats = ?, case_results = ?,
-            completed_at = CURRENT_TIMESTAMP,
-            duration_secs = ?
-        WHERE run_id = ?
-    """, [
-        total, tp, tn, fp, fn,
-        round(accuracy, 2), round(precision, 2), round(recall, 2), round(f1, 2),
-        round(fpr, 2), round(avg_lat, 2), round(p95_lat, 2),
-        json.dumps(category_stats), json.dumps(case_results[:100]),
-        round(elapsed_total, 2), run_id
-    ])
-    con.close()
+        cascade_stats = adapter.get_cascade_stats() if hasattr(adapter, "get_cascade_stats") else None
 
-    cascade_stats = adapter.get_cascade_stats() if hasattr(adapter, "get_cascade_stats") else None
+        await broadcast({
+            "type": "run_completed",
+            "run_id": run_id,
+            "accuracy": round(accuracy, 2),
+            "precision": round(precision, 2),
+            "recall": round(recall, 2),
+            "f1": round(f1, 2),
+            "fpr": round(fpr, 2),
+            "avg_latency_ms": round(avg_lat, 2),
+            "p95_latency_ms": round(p95_lat, 2),
+            "duration_secs": round(elapsed_total, 2),
+            "total_cases": total,
+            "tp": tp, "tn": tn, "fp": fp, "fn": fn,
+            "category_stats": category_stats,
+            "cascade_stats": cascade_stats,
+        })
 
-    await broadcast({
-        "type": "run_completed",
-        "run_id": run_id,
-        "accuracy": round(accuracy, 2),
-        "precision": round(precision, 2),
-        "recall": round(recall, 2),
-        "f1": round(f1, 2),
-        "fpr": round(fpr, 2),
-        "avg_latency_ms": round(avg_lat, 2),
-        "p95_latency_ms": round(p95_lat, 2),
-        "duration_secs": round(elapsed_total, 2),
-        "total_cases": total,
-        "tp": tp, "tn": tn, "fp": fp, "fn": fn,
-        "category_stats": category_stats,
-        "cascade_stats": cascade_stats,
-    })
+    finally:
+        # Release model weights from unified memory after every benchmark run,
+        # ensuring the next run starts with a clean baseline (~0 GPU memory).
+        if hasattr(adapter, "unload"):
+            adapter.unload()
+        # If the adapter is a HybridCascade wrapping an L2 adapter, unload that too
+        if hasattr(adapter, "l2_adapter") and hasattr(adapter.l2_adapter, "unload"):
+            adapter.l2_adapter.unload()
 
 
 # ─── API Routes ──────────────────────────────────────────────────────────────

@@ -52,21 +52,36 @@ class QwenCoderAdapter(BaseModelAdapter):
         self.model = None
         self.tokenizer = None
         self.mlx_lm = None
-        self._load_model()
 
-    def _load_model(self) -> None:
-        """Load MLX model and tokenizer into unified memory."""
+    def load(self) -> None:
+        """Load MLX model and tokenizer into unified memory (lazy, on-demand)."""
+        if self._is_loaded or getattr(self, "model", None) is not None:
+            self._is_loaded = True
+            return
+        model_name = getattr(self, "model_name", "mlx-community/Qwen2.5-Coder-1.5B-Instruct-4bit")
         try:
             import mlx_lm
-            logger.info("Loading %s on Apple Silicon MLX...", self.model_name)
-            self.model, self.tokenizer = mlx_lm.load(self.model_name)
+            logger.info("Loading %s on Apple Silicon MLX...", model_name)
+            self.model, self.tokenizer = mlx_lm.load(model_name)
             self.mlx_lm = mlx_lm
-            logger.info("✅ %s loaded successfully!", self.model_name)
+            self._is_loaded = True
+            logger.info("✅ %s loaded successfully!", model_name)
         except (ImportError, OSError, RuntimeError, ValueError) as e:
-            logger.warning("⚠️ Could not load MLX model '%s' (%s). Fallback active.", self.model_name, e)
+            logger.warning("⚠️ Could not load MLX model '%s' (%s). Fallback active.", model_name, e)
             self.model = None
             self.tokenizer = None
             self.mlx_lm = None
+            self._is_loaded = True
+
+    def unload(self) -> None:
+        """Release MLX model weights and reclaim unified memory."""
+        self.model = None
+        self.tokenizer = None
+        self.mlx_lm = None
+        self._is_loaded = False
+        self.flush_unified_memory()
+        model_name = getattr(self, "model_name", "mlx-community/Qwen2.5-Coder-1.5B-Instruct-4bit")
+        logger.info("🧹 %s unloaded from memory.", model_name)
 
     def evaluate(
         self,
@@ -78,6 +93,7 @@ class QwenCoderAdapter(BaseModelAdapter):
         Evaluate tool parameters against code security vulnerabilities.
         """
         t0 = time.perf_counter()
+        self.ensure_loaded()
         args_str = self.serialize_arguments(tool_arguments)
         context_str = context.strip() if context else "General assistant operation"
 

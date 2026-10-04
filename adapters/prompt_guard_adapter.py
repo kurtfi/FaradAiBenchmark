@@ -37,14 +37,12 @@ class PromptGuardAdapter(BaseModelAdapter):
         self.fallback_model = fallback_model
         self.threat_threshold = threat_threshold
         self.active_model_name = model_name
+        self._user_device = device
 
         self.tokenizer = None
         self.model = None
         self.torch_device = None
         self.id2label: dict[int, str] = {}
-
-        self._init_device(device)
-        self._load_model()
 
     def _init_device(self, user_device: str | None) -> None:
         """Detect and initialize compute device (MPS on Apple Silicon, CUDA, or CPU)."""
@@ -63,7 +61,25 @@ class PromptGuardAdapter(BaseModelAdapter):
             logger.warning("PyTorch not installed. PromptGuardAdapter will use heuristic fallback.")
             self.torch_device = None
 
-    def _load_model(self) -> None:
+    def load(self) -> None:
+        """Initialize device and load model weights (lazy, on-demand)."""
+        if self._is_loaded or getattr(self, "model", None) is not None:
+            self._is_loaded = True
+            return
+        self._init_device(self._user_device)
+        self._load_model_weights()
+        self._is_loaded = True
+
+    def unload(self) -> None:
+        """Release PyTorch model weights and reclaim MPS / unified memory."""
+        self.model = None
+        self.tokenizer = None
+        self.id2label = {}
+        self._is_loaded = False
+        self.flush_unified_memory()
+        logger.info("🧹 PromptGuard (%s) unloaded from memory.", self.active_model_name)
+
+    def _load_model_weights(self) -> None:
         """Attempt loading requested model, falling back to local/un-gated model if gated or offline."""
         if self.torch_device is None:
             return
@@ -165,6 +181,7 @@ class PromptGuardAdapter(BaseModelAdapter):
         Evaluate tool arguments for indirect prompt injection or jailbreak patterns.
         """
         t0 = time.perf_counter()
+        self.ensure_loaded()
 
         # Fast heuristic fallback if neural model is not active
         if self.model is None or self.tokenizer is None:

@@ -47,9 +47,10 @@ def test_prompt_guard_injection_blocked():
     assert result["decision_engine"] in ["L2_PROMPT_GUARD", "L2_FALLBACK_HEURISTIC"]
 
 
-def test_prompt_guard_fallback_mode():
+def test_prompt_guard_fallback_mode(monkeypatch):
     adapter = PromptGuardAdapter()
-    # Force fallback by clearing model
+    # Force fallback by preventing model loading
+    monkeypatch.setattr(adapter, "_load_model_weights", lambda: None)
     adapter.model = None
     adapter.tokenizer = None
 

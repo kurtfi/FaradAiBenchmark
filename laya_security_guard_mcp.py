@@ -7,21 +7,18 @@ except ImportError:
 
 mcp = FastMCP("Laya-OWASP-Agent-Guard")
 
-print("⏳ Laya MLX modeli yükleniyor...")
-try:
-    import laya_mlx
-    agent = laya_mlx.load()
-    print("✅ Laya MLX modeli hazır!")
-except Exception as e:
-    print(f"⚠️ Laya MLX modeli yüklenemedi ({e}). Fallback devrede.")
-    agent = None
+# Lazy singleton — model weights are loaded on first inspect_tool_call invocation,
+# NOT at import time.  This prevents ~2 GB of unified memory being consumed
+# when this module is merely imported (e.g. by benchmark_runner, web/app, or tests).
+agent = None
+_agent_loaded = False
 
-# Varsayılan kalibre edilmiş bloklama eşiği (%70)
+# Default calibrated block threshold (70%)
 DEFAULT_THREAT_THRESHOLD = 0.70
 
-# İki Kademeli (Dual-Check) Evrensel Tarafsız Soru Seti
-# 1. Misalignment: Kullanıcının hedefinden sapma / yetkisiz işlem
-# 2. Exploit: Teknik istismar / enjeksiyon / sızdırma yükü
+# Two-phase (Dual-Check) universal neutral question set
+# 1. Misalignment: deviation from user goal / unauthorized action
+# 2. Exploit: technical exploit / injection / exfiltration payload
 DUAL_CHECK_QUESTIONS = {
     "misalignment": {
         "type": "noul",
@@ -40,6 +37,26 @@ DUAL_CHECK_QUESTIONS = {
 }
 
 
+def _get_agent():
+    """Lazy-load the Laya MLX model on first use."""
+    global agent, _agent_loaded
+    if agent is not None:
+        return agent
+    if _agent_loaded:
+        return agent
+    try:
+        import laya_mlx
+        agent = laya_mlx.load()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            "Could not load Laya MLX model (%s). Fallback active.", e
+        )
+        agent = None
+    _agent_loaded = True
+    return agent
+
+
 @mcp.tool()
 def inspect_tool_call(
     tool_name: str,
@@ -49,12 +66,13 @@ def inspect_tool_call(
     threat_threshold: float = DEFAULT_THREAT_THRESHOLD
 ) -> Dict[str, Any]:
     """
-    LLM'in bir MCP Tool'una gönderdiği parametreleri Kök Niyet İzolasyonu
-    ve Dual-Check (Alignment + Exploit) mimarisiyle genel güvenlik denetiminden geçirir.
-    Tool adından bağımsızdır (Open-Closed Principle).
+    Evaluate parameters sent by an LLM to an MCP Tool using Root Intent Isolation
+    and Dual-Check (Alignment + Exploit) architecture for general security inspection.
+    Tool-name agnostic (Open-Closed Principle).
     """
     payload_str = json.dumps(tool_arguments, ensure_ascii=False)
-    
+    agent = _get_agent()
+
     if agent is None:
         # Fallback if MLX engine is unavailable in current runtime
         arg_lower = payload_str.lower()
@@ -68,7 +86,7 @@ def inspect_tool_call(
             "inspected_tool": tool_name
         }
 
-    # Kök Niyet İzolasyonlu Durum Temsili
+    # Root Intent Isolation state representation
     user_goal = execution_context.strip() if execution_context else "General assistant task"
     tool_desc = tool_description.strip() if tool_description else tool_name
 
@@ -88,10 +106,10 @@ def inspect_tool_call(
     misalign_prob = float(answers.get("misalignment", {}).get("noul", 0.0))
     exploit_prob = float(answers.get("exploit", {}).get("noul", 0.0))
 
-    # Bileşik tehdit skoru (en yüksek risk faktörü)
+    # Composite threat score (highest risk factor)
     threat_prob = max(misalign_prob, exploit_prob)
 
-    # Kalibre edilmiş eşik denetimi (%70)
+    # Calibrated threshold check (70%)
     is_violation = threat_prob >= threat_threshold
 
     return {
