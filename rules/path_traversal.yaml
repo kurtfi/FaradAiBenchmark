@@ -23,7 +23,7 @@ rules:
     threat_domain: "PATH_TRAVERSAL"
     cwe: "CWE-22"
     severity: "CRITICAL"
-    regex: '(?i)/(?:etc/(?:[a-z0-9_.-]+/)*[a-z0-9_.-]+|var/log/(?:[a-z0-9_.-]+/)*[a-z0-9_.-]+|proc/(?:self|sys|version|\d+)/|var/run/secrets|root/\.ssh/)'
+    regex: '(?i)/(?:etc/(?:[a-z0-9_.-]+/)*[a-z0-9_.-]+|var/(?:log|spool)/(?:[a-z0-9_.-]+/)*[a-z0-9_.-]+|proc/(?:self|sys|version|\d+)/|var/run/secrets|root/\.ssh/|usr/local/(?:etc|logs|bin)/)'
     description: "Detects direct references to sensitive Unix configuration (/etc), logs (/var/log), process environments (/proc), and secrets."
 
   - id: "TRAVERSAL-WINDOWS-SYSTEM"
@@ -31,5 +31,5 @@ rules:
     threat_domain: "PATH_TRAVERSAL"
     cwe: "CWE-22"
     severity: "CRITICAL"
-    regex: '(?i)[A-Za-z]:[/\\](?:windows|winnt|xampp|wamp|inetpub)(?:[/\\]|$)'
+    regex: '(?i)[A-Za-z]:[/\\](?:windows|winnt|xampp|wamp|inetpub|program\s+files(?:\s*\(x86\))?)(?:[/\\]|$)'
     description: "Detects attempts to access Windows system directories, SAM, registry hives, or local web server roots."

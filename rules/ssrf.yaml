@@ -3,12 +3,12 @@ category: "SSRF"
 description: "Rules detecting Server-Side Request Forgery against cloud instance metadata services and private internal networks."
 rules:
   - id: "SSRF-CLOUD-METADATA"
-    name: "Cloud Instance Metadata Service (IMDS)"
+    name: "Cloud Instance Metadata & Internal Cluster Services"
     threat_domain: "SSRF"
     cwe: "CWE-918"
     severity: "CRITICAL"
-    regex: '(?i)\b(?:169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200|instance-data)\b'
-    description: "Detects direct access to AWS, GCP, Azure, or Alibaba Cloud instance metadata endpoints."
+    regex: '(?i)\b(?:169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200|instance-data|kubernetes\.default\.svc|cluster\.local)\b'
+    description: "Detects direct access to AWS, GCP, Azure, Alibaba Cloud instance metadata or internal Kubernetes cluster endpoints."
 
   - id: "SSRF-LOOPBACK-PRIVATE"
     name: "Localhost or Loopback Probing"

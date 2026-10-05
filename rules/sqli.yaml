@@ -41,3 +41,12 @@ rules:
     severity: "HIGH"
     regex: '(?i)\bFROM\s+(?:information_schema\.|sys\.tables|sqlite_master|pg_catalog\.)\b'
     description: "Detects queries interrogating database engine schema tables for reconnaissance."
+
+  - id: "SQLI-TIME-BASED-BLIND"
+    name: "Time-Based Blind SQL Injection"
+    threat_domain: "SQLI"
+    cwe: "CWE-89"
+    severity: "HIGH"
+    regex: '(?i)\b(?:(?:SLEEP|BENCHMARK|PG_SLEEP)\s*\(|WAITFOR\s+DELAY\b)'
+    description: "Detects time delay SQL functions used in blind inference attacks."
+
