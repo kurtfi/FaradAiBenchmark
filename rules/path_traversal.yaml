@@ -23,13 +23,13 @@ rules:
     threat_domain: "PATH_TRAVERSAL"
     cwe: "CWE-22"
     severity: "CRITICAL"
-    regex: '(?i)/(?:etc/(?:passwd|shadow|hosts|group|security/)|proc/(?:self|sys|version)/|var/run/secrets|root/\.ssh/)'
-    description: "Detects explicit references to sensitive Unix configuration and credential paths."
+    regex: '(?i)/(?:etc/(?:[a-z0-9_.-]+/)*[a-z0-9_.-]+|var/log/(?:[a-z0-9_.-]+/)*[a-z0-9_.-]+|proc/(?:self|sys|version|\d+)/|var/run/secrets|root/\.ssh/)'
+    description: "Detects direct references to sensitive Unix configuration (/etc), logs (/var/log), process environments (/proc), and secrets."
 
-  - id: "TRAVERSAL-WINDOWS-SAM"
-    name: "Windows System SAM / Registry File Path"
+  - id: "TRAVERSAL-WINDOWS-SYSTEM"
+    name: "Windows Sensitive System & Server Path"
     threat_domain: "PATH_TRAVERSAL"
     cwe: "CWE-22"
     severity: "CRITICAL"
-    regex: '(?i)[A-Za-z]:\\(?:windows|winnt)\\(?:system32|repair)\\(?:config|sam)'
-    description: "Detects attempts to access Windows SAM database or registry hive files."
+    regex: '(?i)[A-Za-z]:[/\\](?:windows|winnt|xampp|wamp|inetpub)(?:[/\\]|$)'
+    description: "Detects attempts to access Windows system directories, SAM, registry hives, or local web server roots."

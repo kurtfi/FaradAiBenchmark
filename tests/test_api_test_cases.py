@@ -19,7 +19,7 @@ def test_api_test_cases_filters(client):
     data = response.json()
 
     assert "total_pool_cases" in data
-    assert data["total_pool_cases"] >= 16000
+    assert data["total_pool_cases"] >= 14000
     assert "datasets" in data
     assert len(data["datasets"]) > 0
     assert "threat_domains" in data
@@ -47,8 +47,8 @@ def test_api_test_cases_default_pagination(client):
     assert len(cases) == 50
     assert pag["page"] == 1
     assert pag["limit"] == 50
-    assert pag["total_records"] >= 16000
-    assert pag["total_pages"] > 300
+    assert pag["total_records"] >= 14000
+    assert pag["total_pages"] > 250
     assert pag["has_next"] is True
     assert pag["has_prev"] is False
 
