@@ -26,10 +26,10 @@ PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 
 
 from adapters.base import BaseModelAdapter
-from adapters.qwen_coder_adapter import QwenCoderAdapter
 from adapters.granite_guardian_adapter import GraniteGuardianAdapter
 from adapters.llama_guard_adapter import LlamaGuardAdapter
 from adapters.prompt_guard_adapter import PromptGuardAdapter
+from adapters.qwen_coder_adapter import Qwen3GuardAdapter, QwenCoderAdapter
 from adapters.shield_gemma_adapter import ShieldGemmaAdapter
 
 
@@ -220,6 +220,8 @@ ADAPTER_REGISTRY: Dict[str, type] = {
     "laya-mlx": LayaMLXAdapter,
     "l1-rules": L1StaticAdapter,
     "qwen-coder": QwenCoderAdapter,
+    "qwen3guard": Qwen3GuardAdapter,
+    "qwen-guard": Qwen3GuardAdapter,
     "granite-guardian": GraniteGuardianAdapter,
     "llama-guard-3": LlamaGuardAdapter,
     "prompt-guard": PromptGuardAdapter,

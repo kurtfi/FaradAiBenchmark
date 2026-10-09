@@ -58,32 +58,12 @@ def create_sample(sample_size: int, output_file: str, balanced: bool = True):
         console.print(f"[bold red]❌ Master parquet not found at {MASTER_PARQUET}.[/bold red]")
         return
 
-    out_path = PROCESSED_DIR / output_file
-    con = duckdb.connect(database=":memory:")
-
     if balanced:
-        # Balanced sampling: half malicious, half benign (or proportional per threat)
-        half = sample_size // 2
-        sql = f"""
-            COPY (
-                WITH malicious AS (
-                    SELECT * FROM '{MASTER_PARQUET}'
-                    WHERE is_malicious = true
-                    ORDER BY random()
-                    LIMIT {half}
-                ),
-                benign AS (
-                    SELECT * FROM '{MASTER_PARQUET}'
-                    WHERE is_malicious = false
-                    ORDER BY random()
-                    LIMIT {half}
-                )
-                SELECT * FROM malicious
-                UNION ALL
-                SELECT * FROM benign
-            ) TO '{out_path}' (FORMAT PARQUET, COMPRESSION 'SNAPPY')
-        """
+        from scripts.split_datasets import generate_splits
+        generate_splits(test_size=sample_size)
     else:
+        out_path = PROCESSED_DIR / output_file
+        con = duckdb.connect(database=":memory:")
         sql = f"""
             COPY (
                 SELECT * FROM '{MASTER_PARQUET}'
@@ -91,10 +71,9 @@ def create_sample(sample_size: int, output_file: str, balanced: bool = True):
                 LIMIT {sample_size}
             ) TO '{out_path}' (FORMAT PARQUET, COMPRESSION 'SNAPPY')
         """
-
-    con.execute(sql)
-    count = con.execute(f"SELECT COUNT(*) FROM '{out_path}'").fetchone()[0]
-    console.print(f"[bold green]✅ Sample of {count} records saved to {out_path}[/bold green]")
+        con.execute(sql)
+        count = con.execute(f"SELECT COUNT(*) FROM '{out_path}'").fetchone()[0]
+        console.print(f"[bold green]✅ Unbalanced sample of {count} records saved to {out_path}[/bold green]")
 
 
 def main():
@@ -113,3 +92,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
