@@ -1,34 +1,34 @@
-# ADR 0004: DuckDB İlişkisel Değerlendirme Tablosu ve Uyuşmazlık (Discrepancy) Analizi
+# ADR 0004: DuckDB Relational Evaluation Schema and Discrepancy Analysis
 
-* **Tarih:** 2026-10-02
-* **Durum:** Kabul Edildi (Accepted)
-* **Kapsam:** Faraday Guard / Benchmark Depolama ve Karşılaştırma Altyapısı
-
----
-
-## 1. Bağlam ve Problem Tanımı (Context)
-10.000+ test vakasının yer aldığı benchmark koşumlarında:
-1. Sonuçları `run_history` tablosunda tek bir JSON metni (`VARCHAR`) olarak saklamak bellek şişmesine, yavaş deserialization'a ve sorgu verimsizliğine yol açar.
-2. Web arayüzünde iki farklı modelin 10.000 sonucunu satır satır tarayıcıya basarak diff yapmak performansı kilitler. Oysa güvenlik araştırmacılarının asıl ihtiyacı, iki modelin aynı kararı verdiği binlerce vaka değil, **kararların çeliştiği (Discrepancy / Mismatch)** alt kümedir.
+* **Date:** 2026-10-02
+* **Status:** Accepted
+* **Scope:** Faraday Guard / Benchmark Storage & Comparative Infrastructure
 
 ---
 
-## 2. Alınan Kararlar ve Gerekçeleri (Decision Log)
-
-### Karar 1: Ayrık İlişkisel Tablo Yapısı
-* **Karar:** DuckDB içinde iki ayrık tablo yapısına geçilecektir:
-  - `run_history`: Koşumun genel özet metriklerini (F1, Accuracy, Precision, Recall, FPR, p95 Latency, süre) tutar.
-  - `run_case_evaluations`: Her bir vakanın koşum sonucunu tutar (`run_id, case_id, domain, expected, predicted, correct, confidence, latency_ms`).
-* **Gerekçe:** DuckDB columnar sıkıştırması sayesinde 10.000 satır yalnızca ~200 KB disk kaplar.
-
-### Karar 2: SQL Tabanlı Uyuşmazlık (Discrepancy) Analizi
-* **Karar:** İki koşum karşılaştırılırken tarayıcıya tüm veri gönderilmeyecektir. DuckDB üzerinde `JOIN` sorgusu çalıştırılarak:
-  - **Mutabakat Oranı (Agreement Rate):** Modellerin % kaç oranda aynı kararı verdiği.
-  - **Zıt Kararlar (Discrepancies):** Yalnızca Model A'nın `BLOCKED` deyip Model B'nin `ALLOWED` dediği (veya tersi) vakalar filtrelenip sayfalanmış (paginated) olarak UI'a iletilecektir.
+## 1. Context and Problem Statement
+In large-scale benchmark runs exceeding 10,000+ test cases:
+1. Persisting results within `run_history` as an unindexed JSON blob (`VARCHAR`) causes memory bloat, slow deserialization, and query inefficiency.
+2. Transferring 10,000+ raw records to the browser for client-side diffing freezes the UI. Security researchers primarily require visibility into **discrepancies (cases where Model A and Model B reached opposite verdicts)** rather than the thousands of cases where they agreed.
 
 ---
 
-## 3. Sonuçlar (Consequences)
-* DuckDB şeması `run_case_evaluations` tablosunu içerecek şekilde güncellenecektir.
-* `/api/runs/{run_id_a}/compare/{run_id_b}` REST endpoint'i eklenecek ve SQL JOIN ile uyuşmazlıkları dönecektir.
-* Web arayüzünde "Compare Runs" sekmesi hafif ve anlık yanıt veren bir yapıya kavuşacaktır.
+## 2. Decision Log
+
+### Decision 1: Normalized Relational Tables in DuckDB
+* **Decision:** Adopt a two-table relational structure in DuckDB:
+  - `run_history`: Stores overall aggregate run metrics (F1, Accuracy, Precision, Recall, FPR, p95 latency, duration).
+  - `run_case_evaluations`: Stores individual test case evaluations (`run_id, case_id, domain, expected, predicted, correct, confidence, latency_ms`).
+* **Rationale:** DuckDB's columnar compression compresses 10,000 evaluations to ~200 KB on disk while enabling high-throughput bulk insertions and index-assisted querying.
+
+### Decision 2: SQL-Driven Discrepancy Analysis
+* **Decision:** Perform cross-run comparisons server-side via SQL `JOIN` queries:
+  - **Agreement Rate:** The percentage of cases where both models concurred.
+  - **Discrepancies:** Isolates cases where Model A rendered `BLOCKED` while Model B rendered `ALLOWED` (or vice versa), returned via server-side pagination.
+
+---
+
+## 3. Consequences
+* DuckDB database schema updated with primary keys and indexes over `run_case_evaluations`.
+* Exposed `/api/runs/{run_id_a}/compare/{run_id_b}` REST endpoint executing SQL joins.
+* Web dashboard "Compare Runs" tab provides instant, responsive differential analysis without browser lag.

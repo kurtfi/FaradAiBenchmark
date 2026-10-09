@@ -1,8 +1,8 @@
 """
-web/schemas.py — Faraday Laya Guard: Pydantic v2 OpenAPI API Sözleşmeleri
+web/schemas.py — Faraday Laya Guard: Pydantic v2 OpenAPI API Contracts
 
-Bu modül, FastAPI REST API rotaları için tip güvenli istek ve yanıt şemalarını tanımlar.
-OpenAPI / Swagger şemasındaki drift'i önler ve istemciler için standart veri sözleşmesi sunar.
+This module defines type-safe request and response schemas for FastAPI REST API routes.
+Prevents contract drift between the backend and external consumers / UI layers.
 """
 
 from typing import Any, Dict, List, Optional
@@ -12,67 +12,67 @@ from pydantic import BaseModel, Field
 # ─── Datasets & Models ────────────────────────────────────────────────────────
 
 class DatasetItem(BaseModel):
-    """Kullanılabilir Parquet benchmark veri seti üstverisi."""
-    name: str = Field(..., description="Veri seti görünen adı (örn: master_benchmark)")
-    path: str = Field(..., description="Parquet dosyasının sunucu üzerindeki yolu")
-    cases: int = Field(..., description="Veri setindeki toplam test senaryosu sayısı")
-    size_mb: float = Field(..., description="Dosya boyutu (MB)")
-    description: str = Field(..., description="Kapsanan güvenlik tehdit alanları özeti")
-    source: str = Field("Parquet", description="Veri formatı / kaynağı")
+    """Metadata describing an available Parquet benchmark dataset."""
+    name: str = Field(..., description="Display name of the dataset (e.g. master_benchmark)")
+    path: str = Field(..., description="Absolute or relative file path on server")
+    cases: int = Field(..., description="Total number of standardized test cases")
+    size_mb: float = Field(..., description="File size on disk in megabytes")
+    description: str = Field(..., description="Summary of covered threat domains")
+    source: str = Field("Parquet", description="Storage format or origin")
 
 
 class ModelItem(BaseModel):
-    """Güvenlik değerlendirme adapter veya modeli."""
-    id: str = Field(..., description="Model tanımlayıcısı (örn: laya-mlx, qwen-coder)")
-    name: str = Field(..., description="Arayüzde gösterilen ad")
-    backend: str = Field(..., description="Çalışma zamanı altyapısı (MLX, PyTorch, Heuristic)")
-    description: str = Field(..., description="Modelin yetenek ve kullanım amacı")
-    quantization: str = Field(..., description="Kuantizasyon tipi (4-bit, fp16)")
-    loaded: bool = Field(False, description="Model ağırlıkları belleğe yüklü mü?")
+    """Registered security evaluation model adapter."""
+    id: str = Field(..., description="Model identifier key (e.g. laya-mlx, qwen-coder)")
+    name: str = Field(..., description="Human-readable display name")
+    backend: str = Field(..., description="Execution runtime (MLX, PyTorch, Heuristic)")
+    description: str = Field(..., description="Model capabilities and intended scope")
+    quantization: str = Field(..., description="Quantization profile (4-bit, fp16)")
+    loaded: bool = Field(False, description="Whether weights are currently resident in memory")
 
 
 # ─── Benchmark Runs ───────────────────────────────────────────────────────────
 
 class RunCreateRequest(BaseModel):
-    """Yeni benchmark başlatma isteği."""
-    dataset_path: str = Field(..., description="Hedef Parquet dosyasının yolu")
-    model_name: str = Field("mock", description="Kullanılacak model adapter adı")
-    dataset_name: str = Field("unknown", description="Görüntüleme için veri seti etiketi")
-    enable_l1: bool | str = Field(True, description="L1 statik regex cascade devrede mi?")
-    tier_filter: str = Field("all", description="Filtreleme kapsamı: all | static | semantic")
+    """Payload to trigger a new benchmark evaluation run."""
+    dataset_path: str = Field(..., description="Target Parquet file path")
+    model_name: str = Field("mock", description="Registered model adapter identifier")
+    dataset_name: str = Field("unknown", description="Display label for the dataset")
+    enable_l1: bool | str = Field(True, description="Enable L1 static regex cascade filter")
+    tier_filter: str = Field("all", description="Scope filter: all | static | semantic")
 
 
 class RunCreateResponse(BaseModel):
-    """Başlatılan benchmark yanıtı."""
-    run_id: str = Field(..., description="Üretilen tekil koşu kimliği")
-    status: str = Field("started", description="Koşu durumu")
+    """Response returned upon successfully queuing a benchmark run."""
+    run_id: str = Field(..., description="Unique generated run identifier")
+    status: str = Field("started", description="Execution status")
 
 
 class RunSummary(BaseModel):
-    """Koşu geçmişi özet satırı."""
-    run_id: str = Field(..., description="Koşu tekil kimliği")
-    dataset_name: str = Field(..., description="Değerlendirilen veri seti")
-    model_name: str = Field(..., description="Kullanılan model ve konfigürasyon")
-    status: str = Field(..., description="Koşu durumu: pending | running | completed | error")
-    total_cases: int = Field(0, description="Toplam test senaryosu")
-    accuracy: float = Field(0.0, description="Genel doğruluk oranı (%)")
-    precision: float = Field(0.0, description="Hassasiyet (Precision) (%)")
-    recall: float = Field(0.0, description="Duyarlılık (Recall) (%)")
-    f1: float = Field(0.0, description="F1 skoru (%)")
-    fpr: float = Field(0.0, description="Yanlış Pozitif Oranı (False Positive Rate) (%)")
-    avg_latency_ms: float = Field(0.0, description="Ortalama gecikme (ms)")
-    p95_latency_ms: float = Field(0.0, description="95. persentil gecikme (ms)")
-    duration_secs: float = Field(0.0, description="Toplam koşu süresi (saniye)")
-    tp: int = Field(0, description="True Positive sayısı")
-    tn: int = Field(0, description="True Negative sayısı")
-    fp: int = Field(0, description="False Positive sayısı")
-    fn: int = Field(0, description="False Negative sayısı")
-    started_at: Optional[Any] = Field(None, description="Başlangıç zamanı")
-    completed_at: Optional[Any] = Field(None, description="Bitiş zamanı")
+    """Historical summary record for a completed or active benchmark run."""
+    run_id: str = Field(..., description="Unique run identifier")
+    dataset_name: str = Field(..., description="Evaluated dataset display label")
+    model_name: str = Field(..., description="Evaluated model adapter and configuration")
+    status: str = Field(..., description="Execution status: pending | running | completed | error")
+    total_cases: int = Field(0, description="Total planned test cases")
+    accuracy: float = Field(0.0, description="Overall accuracy percentage (%)")
+    precision: float = Field(0.0, description="Precision metric percentage (%)")
+    recall: float = Field(0.0, description="Recall metric percentage (%)")
+    f1: float = Field(0.0, description="F1-score percentage (%)")
+    fpr: float = Field(0.0, description="False Positive Rate percentage (%)")
+    avg_latency_ms: float = Field(0.0, description="Mean inference latency in milliseconds")
+    p95_latency_ms: float = Field(0.0, description="95th percentile latency in milliseconds")
+    duration_secs: float = Field(0.0, description="Total elapsed benchmark duration in seconds")
+    tp: int = Field(0, description="True Positive count")
+    tn: int = Field(0, description="True Negative count")
+    fp: int = Field(0, description="False Positive count")
+    fn: int = Field(0, description="False Negative count")
+    started_at: Optional[Any] = Field(None, description="Start timestamp")
+    completed_at: Optional[Any] = Field(None, description="Completion timestamp")
 
 
 class RunEvaluationItem(BaseModel):
-    """Tekil bir test senaryosunun değerlendirme kaydı."""
+    """Granular evaluation record for a single test case within a run."""
     case_id: str
     source: Optional[str] = ""
     domain: str
@@ -92,7 +92,7 @@ class RunEvaluationItem(BaseModel):
 
 
 class RunDetailResponse(BaseModel):
-    """Belirli bir benchmark koşusunun detaylı analizi."""
+    """Detailed benchmark run breakdown including per-category stats."""
     run_id: str
     dataset_name: str
     model_name: str
@@ -118,15 +118,14 @@ class RunDetailResponse(BaseModel):
 
 
 class DeleteRunResponse(BaseModel):
-    """Koşu silme yanıtı."""
+    """Confirmation payload returned upon deleting a run."""
     deleted: str
-
 
 
 # ─── Discrepancy & Comparison ─────────────────────────────────────────────────
 
 class CompareRunsResponse(BaseModel):
-    """İki model veya koşu arasındaki uyuşmazlık (discrepancy) matrisi."""
+    """Cross-model discrepancy matrix comparing two benchmark runs."""
     run_a: Dict[str, Any]
     run_b: Dict[str, Any]
     total_shared_cases: int
@@ -139,21 +138,21 @@ class CompareRunsResponse(BaseModel):
 # ─── Test Cases Explorer ──────────────────────────────────────────────────────
 
 class CategoryCountItem(BaseModel):
-    """Filtreleme kategorisi ve vaka sayısı."""
-    name: str = Field(..., description="Kategori adı")
-    count: int = Field(..., description="Bu kategorideki vaka sayısı")
+    """Category filter item with aggregate case count."""
+    name: str = Field(..., description="Category label")
+    count: int = Field(..., description="Total case count in category")
 
 
 class TestCaseFiltersResponse(BaseModel):
-    """Test vakaları havuzu için mevcut filtreler."""
-    total_pool_cases: int = Field(..., description="Havuzdaki toplam vaka sayısı")
+    """Available filter dimensions and distributions for the test case pool."""
+    total_pool_cases: int = Field(..., description="Total cases in the pool")
     datasets: List[CategoryCountItem]
     threat_domains: List[CategoryCountItem]
     analysis_tiers: List[CategoryCountItem]
 
 
 class TestCasePagination(BaseModel):
-    """Sayfalama üstverisi."""
+    """Pagination metadata for test case queries."""
     page: int
     limit: int
     total_records: int
@@ -163,7 +162,7 @@ class TestCasePagination(BaseModel):
 
 
 class TestCaseItem(BaseModel):
-    """Test vakası veri modeli."""
+    """Standardized benchmark test case entity."""
     model_config = {"extra": "allow"}
 
     id: str
@@ -179,8 +178,7 @@ class TestCaseItem(BaseModel):
     context: Optional[str] = None
 
 
-
 class TestCasesListResponse(BaseModel):
-    """Sayfalanmış test vakaları yanıtı."""
+    """Paginated list of benchmark test cases."""
     cases: List[TestCaseItem]
     pagination: TestCasePagination

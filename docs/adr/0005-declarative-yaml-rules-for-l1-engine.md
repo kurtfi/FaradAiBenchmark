@@ -1,39 +1,39 @@
-# ADR 0005: L1 Statik Denetim Motorunda Bildirimsel (Declarative) YAML Kural Mimarisi
+# ADR 0005: Declarative YAML Rule Architecture for L1 Static Engine
 
-* **Tarih:** 2026-10-02
-* **Durum:** Kabul Edildi (Accepted)
-* **Kapsam:** Faraday Guard / L1 Statik Kural Yönetimi
-
----
-
-## 1. Bağlam ve Problem Tanımı (Context)
-L1 Statik Denetim Motoru, LLM'den MCP tool'larına giden parametrelerdeki doğrudan saldırı imzalarını (Path Traversal, SQLi, Command Injection) ve DLP sızıntılarını (API anahtarları, token'lar, özel anahtarlar) mikrosaniye düzeyinde (<0.2ms) engellemekle yükümlüdür.
-
-Bu kuralların Python kaynak koduna gömülü (hardcoded) olması:
-- Yeni bir token kalıbı veya saldırı deseni eklendiğinde kod değişikliği ve yeniden dağıtım gerektirir.
-- Kuralların modüler olarak açılıp kapatılmasını (kategori bazlı test) zorlaştırır.
-- Kurumsal güvenlik politikalarının taşınabilirliğini engeller.
+* **Date:** 2026-10-02
+* **Status:** Accepted
+* **Scope:** Faraday Guard / L1 Static Rule Management
 
 ---
 
-## 2. Alınan Kararlar ve Gerekçeleri (Decision Log)
+## 1. Context and Problem Statement
+The L1 Static Inspection Engine is responsible for blocking overt injection signatures (Path Traversal, SQLi, Command Injection) and DLP leaks (API keys, tokens, private keys) at sub-millisecond latencies (<0.2ms).
 
-### Karar: `rules/*.yaml` Formatında Bildirimsel Kural Seti
-* **Karar:** Tüm statik kurallar `rules/` dizini altında alanlara göre ayrılmış YAML dosyalarında saklanacaktır:
-  - `rules/dlp_secrets.yaml`: API anahtarları, JWT, AWS token, SSH anahtarları.
-  - `rules/command_injection.yaml`: Tehlikeli komut zincirleri, pipe ve shell kaçışları.
-  - `rules/path_traversal.yaml`: Dizin atlama ve hassas sistem dosyası kalıpları.
-  - `rules/sqli.yaml`: Temel SQL injection ve boolean saldırı imzaları.
-* **Derleme ve Çalıştırma:**
-  - Uygulama / benchmark ayağa kalkarken tüm kurallar okunur ve Regex ifadeleri `re.compile` ile önbelleğe alınır.
-  - Çalışma zamanında sıfır disk I/O ve sıfır dosya okuma maliyetiyle sadece bellek içi derlenmiş desenler eşleştirilir.
-* **Alternatifler:**
-  - *Seçenek 2 (In-Code Python Dictionary):* Reddedildi, sürümleme ve dinamik politika yönetimi eksik kalır.
-  - *Seçenek 3 (YARA / Hyperscan C Kütüphaneleri):* Reddedildi, Apple Silicon ve Python dağıtımında gereksiz yerel C bağımlılığı doğurur.
+Hardcoding these signatures inside Python source code:
+- Requires code modifications and redeployment for every new signature or pattern update.
+- Prevents modular enabling or disabling of rule categories during benchmark runs.
+- Limits the portability of security policies across environments.
 
 ---
 
-## 3. Sonuçlar (Consequences)
-* `rules/` dizini ve temel kural paketleri oluşturulacaktır.
-* `L1RuleEngine` sınıfı bu YAML dosyalarını okuyup derleyecek ve `inspect(tool_name, tool_arguments)` metodunu sunacaktır.
-* Benchmark sırasında istenen kural paketi bağımsız olarak test edilebilecektir.
+## 2. Decision Log
+
+### Decision: Declarative Rule Packages via `rules/*.yaml`
+* **Decision:** Store all static security rules in domain-specific YAML packages under `rules/`:
+  - `rules/dlp_secrets.yaml`: API keys, JWTs, AWS tokens, private SSH keys.
+  - `rules/command_injection.yaml`: Dangerous command chaining, shell metacharacters, reverse shells.
+  - `rules/path_traversal.yaml`: Directory traversal sequences and sensitive system file paths.
+  - `rules/sqli.yaml`: Classic SQL injection syntax and tautologies.
+* **Compilation & Execution:**
+  - Rules are loaded and regular expressions are precompiled via `re.compile` at application startup.
+  - Runtime evaluation performs pure in-memory regex matching with zero disk I/O.
+* **Alternatives Considered:**
+  - *Hardcoded Python Dictionaries:* Rejected due to lack of versioning and dynamic policy governance.
+  - *YARA / Hyperscan C Libraries:* Rejected due to unnecessary native C compilation dependencies across Python and Apple Silicon environments.
+
+---
+
+## 3. Consequences
+* Introduced the `rules/` directory with standardized YAML schemas.
+* Built `L1RuleEngine` to parse, precompile, and evaluate rules via `inspect(tool_name, tool_arguments, context)`.
+* Enabled independent, category-scoped benchmarking of static rules.
