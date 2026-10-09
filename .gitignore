@@ -25,3 +25,9 @@ __pycache__/
 # Environment & Secrets
 .env
 .env.local
+
+# Documentation Drafts & Internal Notes
+docs/drafts/
+docs/reports/*draft*
+docs/images/
+docs/wayfinder/
