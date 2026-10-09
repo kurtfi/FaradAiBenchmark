@@ -28,6 +28,6 @@ __pycache__/
 
 # Documentation Drafts & Internal Notes
 docs/drafts/
-docs/reports/*draft*
+docs/reports/
 docs/images/
 docs/wayfinder/
