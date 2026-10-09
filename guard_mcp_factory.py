@@ -55,9 +55,18 @@ def create_guard_mcp(
     adapter: BaseModelAdapter,
     default_threat_threshold: float = DEFAULT_THREAT_THRESHOLD,
 ) -> FastMCP:
-    """
-    Construct a FastMCP server wrapping the specified BaseModelAdapter.
-    Exposes `inspect_tool_call` conforming to FaradayGateway & Claude/Cursor contracts.
+    """Construct a FastMCP server wrapping the specified BaseModelAdapter.
+
+    Exposes the standardized `inspect_tool_call` MCP tool conforming to
+    FaradayGateway, Claude Desktop, and Cursor JSON-RPC contracts.
+
+    Args:
+        server_name: Human-readable name for the FastMCP server instance.
+        adapter: An instantiated BaseModelAdapter subclass.
+        default_threat_threshold: Threat probability cutoff above which calls are blocked.
+
+    Returns:
+        FastMCP: Configured FastMCP server instance ready for stdio execution.
     """
     mcp = FastMCP(server_name)
 
@@ -70,9 +79,22 @@ def create_guard_mcp(
         threat_threshold: float = default_threat_threshold,
         enable_l1_cascade: bool = False,
     ) -> dict[str, Any]:
-        """
-        Evaluate tool call arguments against security policies using the configured SLM adapter.
-        Includes optional L1 cascade and deterministic heuristic fail-safe.
+        """Evaluate tool call arguments against security policies using the configured SLM adapter.
+
+        Performs optional L1 static cascade (<0.2ms) followed by SLM inference
+        and deterministic heuristic fail-safes.
+
+        Args:
+            tool_name: Name of the invoked MCP tool.
+            tool_arguments: Tool arguments dictionary emitted by the agent.
+            execution_context: Conversational task context or prompt goal.
+            tool_description: Optional description of the tool's intended role.
+            threat_threshold: Sensitivity threshold (0.0 to 1.0) for blocking.
+            enable_l1_cascade: If True, executes L1 static regex rules before SLM evaluation.
+
+        Returns:
+            dict[str, Any]: Inspection payload containing verdict ('BLOCKED' | 'ALLOWED'),
+                malicious_probability, decision_engine, and latency metrics.
         """
         import time
         t0 = time.perf_counter()

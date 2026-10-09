@@ -26,6 +26,15 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 from adapters.base import BaseModelAdapter
+from web.schemas import (
+    DatasetItem,
+    ModelItem,
+    RunCreateRequest,
+    RunSummary,
+    DeleteRunResponse,
+    TestCaseFiltersResponse,
+    TestCasesListResponse,
+)
 
 # ─── Path Setup ──────────────────────────────────────────────────────────────
 
@@ -459,29 +468,28 @@ async def dashboard(request: Request):
     return templates.TemplateResponse(request=request, name="index.html")
 
 
-@app.get("/api/datasets")
+@app.get("/api/datasets", response_model=List[DatasetItem])
 async def api_datasets():
     """List available Parquet datasets."""
     return get_available_datasets()
 
 
-@app.get("/api/models")
+@app.get("/api/models", response_model=List[ModelItem])
 async def api_models():
     """List available model adapters."""
     return get_available_models()
 
 
 @app.post("/api/runs")
-async def api_start_run(request: Request):
+async def api_start_run(payload: RunCreateRequest) -> Dict[str, Any]:
     """Start a new benchmark run."""
-    body = await request.json()
-    dataset_path = body.get("dataset_path")
-    model_name = body.get("model_name", "mock")
-    raw_dataset_name = body.get("dataset_name", "unknown")
-    enable_l1 = body.get("enable_l1", True)
+    dataset_path = payload.dataset_path
+    model_name = payload.model_name
+    raw_dataset_name = payload.dataset_name
+    enable_l1 = payload.enable_l1
     if isinstance(enable_l1, str):
         enable_l1 = enable_l1.lower() in ("true", "1", "yes")
-    tier_filter = body.get("tier_filter", "all").lower()
+    tier_filter = payload.tier_filter.lower()
 
     if not dataset_path or not Path(dataset_path).exists():
         return {"error": "Dataset not found", "path": dataset_path}
@@ -525,7 +533,7 @@ async def api_start_run(request: Request):
     return {"run_id": run_id, "status": "started"}
 
 
-@app.get("/api/runs")
+@app.get("/api/runs", response_model=List[RunSummary])
 async def api_list_runs(limit: int = 20):
     """List recent benchmark runs."""
     con = get_db()
@@ -770,7 +778,7 @@ async def api_compare_runs(
     }
 
 
-@app.delete("/api/runs/{run_id}")
+@app.delete("/api/runs/{run_id}", response_model=DeleteRunResponse)
 async def api_delete_run(run_id: str):
     """Delete a specific run from history and all associated evaluations."""
     con = get_db()
@@ -830,7 +838,7 @@ def build_test_cases_filter(
     return " AND ".join(where_clauses), params
 
 
-@app.get("/api/test-cases/filters")
+@app.get("/api/test-cases/filters", response_model=TestCaseFiltersResponse)
 async def api_get_test_case_filters() -> dict[str, Any]:
     """Return distinct categories and case counts from master_benchmark.parquet."""
     if not MASTER_BENCHMARK_PATH.exists():
@@ -860,7 +868,7 @@ async def api_get_test_case_filters() -> dict[str, Any]:
         con.close()
 
 
-@app.get("/api/test-cases")
+@app.get("/api/test-cases", response_model=TestCasesListResponse)
 async def api_list_test_cases(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(50, ge=1, le=100, description="Items per page"),
