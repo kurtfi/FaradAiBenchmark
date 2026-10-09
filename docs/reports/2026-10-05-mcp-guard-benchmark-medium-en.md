@@ -120,8 +120,7 @@ Here is the high-level summary across the 2,000-case frozen evaluation set *(see
 | 5 **Qwen3Guard (Standalone)** | Standalone | 76.75% | **6.30%** | 124.64 ms |
 
 
-*(Note 1: Pure Laya is intentionally highlighted at #2 because, even without any L1 regex assistance, its standalone score of 82.30% outperforms competitor models operating with cascade assistance).*  
-*(Note 2: In cascade mode, Llama Guard 3 reached 70.70% accuracy and 99.23 ms latency, but its chat-trained reflexes continued to flag benign code parameters).*
+*(Note: Pure Laya is intentionally highlighted at #2 because, even without any L1 regex assistance, its standalone score of 82.30% outperforms competitor models operating with cascade assistance).*
 
 ---
 
