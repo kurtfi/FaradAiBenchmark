@@ -1,14 +1,14 @@
 """
-Unit tests for QwenCoderAdapter and BaseModelAdapter contract.
+Unit tests for Qwen3GuardAdapter and BaseModelAdapter contract.
 """
 
 import pytest
 
 from adapters.base import BaseModelAdapter, EvaluationResult
-from adapters.qwen_coder_adapter import QwenCoderAdapter
+from adapters.qwen_guard_adapter import Qwen3GuardAdapter
 
 
-class MockQwenAdapter(QwenCoderAdapter):
+class MockQwenAdapter(Qwen3GuardAdapter):
     """Subclass that stubs model inference for unit test isolation."""
     def __init__(self, mock_response: str = "", threat_threshold: float = 0.70):
         self.mock_response = mock_response
@@ -50,9 +50,9 @@ def test_evaluation_result_schema():
     assert data["latency_ms"] == 12.5
 
 
-def test_qwen_coder_fallback_malicious():
+def test_qwen_guard_fallback_malicious():
     """Test fallback heuristic detects obvious malicious commands when offline."""
-    adapter = QwenCoderAdapter(model_name="non-existent-offline-model")
+    adapter = Qwen3GuardAdapter(model_name="non-existent-offline-model")
     # Should use fallback heuristic
     result = adapter.evaluate(
         tool_name="execute_bash_command",
@@ -64,9 +64,9 @@ def test_qwen_coder_fallback_malicious():
     assert result["decision_engine"] == "L2_FALLBACK_HEURISTIC"
 
 
-def test_qwen_coder_fallback_benign():
+def test_qwen_guard_fallback_benign():
     """Test fallback heuristic allows benign commands when offline."""
-    adapter = QwenCoderAdapter(model_name="non-existent-offline-model")
+    adapter = Qwen3GuardAdapter(model_name="non-existent-offline-model")
     result = adapter.evaluate(
         tool_name="execute_bash_command",
         tool_arguments={"command": "echo 'Hello World'"}
@@ -77,7 +77,7 @@ def test_qwen_coder_fallback_benign():
     assert result["decision_engine"] == "L2_FALLBACK_HEURISTIC"
 
 
-def test_qwen_coder_parsed_json_threat():
+def test_qwen_guard_parsed_json_threat():
     """Test Qwen structured JSON parsing when threat is detected."""
     json_out = """{
         "is_blocked": true,
@@ -97,10 +97,10 @@ def test_qwen_coder_parsed_json_threat():
     assert res["threat_domain"] == "SQLI"
     assert res["cwe"] == "CWE-89"
     assert res["confidence"] == 0.96
-    assert res["decision_engine"] == "L2_QWEN_CODER"
+    assert res["decision_engine"] == "L2_QWEN3_GUARD"
 
 
-def test_qwen_coder_parsed_json_benign():
+def test_qwen_guard_parsed_json_benign():
     """Test Qwen structured JSON parsing when payload is benign."""
     json_out = """{
         "is_blocked": false,

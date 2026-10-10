@@ -23,7 +23,7 @@ class DatasetItem(BaseModel):
 
 class ModelItem(BaseModel):
     """Registered security evaluation model adapter."""
-    id: str = Field(..., description="Model identifier key (e.g. laya-mlx, qwen-coder)")
+    id: str = Field(..., description="Model identifier key (e.g. laya-mlx, qwen3guard)")
     name: str = Field(..., description="Human-readable display name")
     backend: str = Field(..., description="Execution runtime (MLX, PyTorch, Heuristic)")
     description: str = Field(..., description="Model capabilities and intended scope")

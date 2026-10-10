@@ -6,7 +6,7 @@ from adapters.base import BaseModelAdapter, EvaluationResult
 from adapters.granite_guardian_adapter import GraniteGuardianAdapter
 from adapters.llama_guard_adapter import LlamaGuardAdapter
 from adapters.prompt_guard_adapter import PromptGuardAdapter
-from adapters.qwen_coder_adapter import Qwen3GuardAdapter, QwenCoderAdapter
+from adapters.qwen_guard_adapter import Qwen3GuardAdapter, QwenGuardAdapter
 from adapters.shield_gemma_adapter import ShieldGemmaAdapter
 
 __all__ = [
@@ -16,6 +16,6 @@ __all__ = [
     "LlamaGuardAdapter",
     "PromptGuardAdapter",
     "Qwen3GuardAdapter",
-    "QwenCoderAdapter",
+    "QwenGuardAdapter",
     "ShieldGemmaAdapter",
 ]

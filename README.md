@@ -27,7 +27,7 @@ flowchart TD
 
 ### Tiers & Core Components
 1. **L1 Static & DLP Engine (`<0.2ms`):** In-memory precompiled regex engine executing declarative YAML security rules (`rules/*.yaml`). Instantly blocks known command injections (CWE-78), path traversal (CWE-22), SQL injections (CWE-89), SSRF (CWE-918), and secret credentials/keys (DLP) with zero GPU overhead.
-2. **L2 Semantic SLM Engine (`~15-40ms`):** Apple Silicon Metal-accelerated (MLX 4-bit) local Small Language Models (Laya MLX, Qwen-2.5-Coder, Granite Guardian, Llama Guard 3, ShieldGemma, Prompt Guard). Detects indirect prompt injections, goal misalignment, and semantic multi-turn hijacking.
+2. **L2 Semantic SLM Engine (`~15-40ms`):** Apple Silicon Metal-accelerated (MLX 4-bit) local Small Language Models (Laya MLX, Qwen3Guard, Granite Guardian, Llama Guard 3, ShieldGemma, Prompt Guard). Detects indirect prompt injections, goal misalignment, and semantic multi-turn hijacking.
 3. **Fail-Fast Cascade:** Orchestration pattern that intercepts 60-70% of overt technical attacks at the L1 layer, bypassing L2 entirely to minimize SLM GPU/NPU utilization and latency.
 4. **Relational Evaluation Storage (DuckDB):** Persists overall run summaries (`run_history`) and granular case verdicts (`run_case_evaluations`), executing sub-second differential SQL queries to compute cross-model discrepancy matrices (disagreements where Model A allowed and Model B blocked).
 

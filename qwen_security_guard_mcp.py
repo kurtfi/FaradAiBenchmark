@@ -9,7 +9,7 @@ Model weights are loaded lazily on the first inspect_tool_call invocation,
 NOT at import time, to prevent memory bloat during test collection or batch imports.
 """
 
-from adapters.qwen_coder_adapter import Qwen3GuardAdapter
+from adapters.qwen_guard_adapter import Qwen3GuardAdapter
 from guard_mcp_factory import create_guard_mcp
 
 

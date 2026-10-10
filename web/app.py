@@ -125,7 +125,7 @@ def get_available_models() -> List[Dict[str, str]]:
     models = [
         {"id": "hybrid-cascade", "name": "Hybrid Cascade (L1 + L2)", "description": "Two-stage fail-fast static rules + SLM semantic engine", "icon": "🚀", "status": "available"},
         {"id": "laya-mlx", "name": "Laya MLX", "description": "Local Apple Silicon — Laya OWASP Guard", "icon": "🍎", "status": "available"},
-        {"id": "qwen-coder", "name": "Qwen3Guard-0.6B", "description": "Alibaba dedicated tool & agent safety classifier (MLX 0.6B)", "icon": "🛡️", "status": "available"},
+        {"id": "qwen3guard", "name": "Qwen3Guard-0.6B", "description": "Alibaba dedicated tool & agent safety classifier (MLX 0.6B)", "icon": "🛡️", "status": "available"},
         {"id": "granite-guardian", "name": "IBM Granite Guardian 3.0-2B", "description": "Enterprise agentic risk & tool safety classifier (MLX)", "icon": "🛡️", "status": "available"},
         {"id": "llama-guard-3", "name": "Meta Llama Guard 3 1B", "description": "MLCommons agent safety & misuse detection (MLX)", "icon": "🦙", "status": "available"},
         {"id": "prompt-guard", "name": "Prompt-Guard-86M", "description": "Ultra-fast (<25ms) indirect prompt injection classifier (MPS)", "icon": "⚡", "status": "available"},

@@ -35,7 +35,7 @@ DEFAULT_DB_PATH = PROJECT_ROOT / "data" / "benchmark_runs.duckdb"
 DEFAULT_COMPARISON_MODELS = [
     "l1-rules",
     "prompt-guard",
-    "qwen-coder",
+    "qwen3guard",
     "granite-guardian",
     "llama-guard-3",
     "laya-mlx",

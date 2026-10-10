@@ -195,7 +195,7 @@ class Qwen3GuardAdapter(BaseModelAdapter):
                         verdict=verdict,
                         threat_domain=threat_domain if is_blocked else None,
                         cwe=cwe if is_blocked else None,
-                        decision_engine="L2_QWEN_CODER",
+                        decision_engine="L2_QWEN3_GUARD",
                         raw_output=cleaned,
                         latency_ms=round(latency_ms, 3),
                     ).to_dict()
@@ -348,5 +348,5 @@ class Qwen3GuardAdapter(BaseModelAdapter):
         ).to_dict()
 
 
-# Alias for 100% backward compatibility across all modules and tests
-QwenCoderAdapter = Qwen3GuardAdapter
+# Model alias
+QwenGuardAdapter = Qwen3GuardAdapter

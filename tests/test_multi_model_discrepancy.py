@@ -30,7 +30,7 @@ def test_cross_model_comparison_qwen_vs_granite(client):
     con.execute("""
         INSERT INTO run_history (run_id, dataset_name, dataset_path, model_name, status, total_cases, accuracy, f1_score, avg_latency_ms)
         VALUES
-        (?, 'master_benchmark', 'data/processed/master_benchmark.parquet', 'qwen-coder', 'completed', 3, 66.7, 66.7, 45.2),
+        (?, 'master_benchmark', 'data/processed/master_benchmark.parquet', 'qwen3guard', 'completed', 3, 66.7, 66.7, 45.2),
         (?, 'master_benchmark', 'data/processed/master_benchmark.parquet', 'granite-guardian', 'completed', 3, 100.0, 100.0, 240.5)
     """, [run_qwen, run_granite])
 
@@ -44,9 +44,9 @@ def test_cross_model_comparison_qwen_vs_granite(client):
             decided_by, confidence, latency_ms, offload_saved_ms,
             verdict_detail, tool_arguments, context
         ) VALUES
-        (?, 'c-1', 'agentdojo', 'SQLI', 'STATIC_CAPABLE', 'CWE-89', 'sql_exec', true, true, true, 'L2_QWEN_CODER', 0.95, 42.0, 0, 'BLOCKED', '{"query": "DROP TABLE"}', 'Admin query'),
-        (?, 'c-2', 'agentdojo', 'PROMPT_INJECTION', 'SEMANTIC_REQUIRED', 'CWE-77', 'search', true, false, false, 'L2_QWEN_CODER', 0.20, 51.0, 0, 'ALLOWED', '{"query": "Ignore prompt"}', 'Web search'),
-        (?, 'c-3', 'agentdojo', 'BENIGN', 'STATIC_CAPABLE', 'None', 'read_file', false, false, true, 'L2_QWEN_CODER', 0.05, 38.0, 0, 'ALLOWED', '{"path": "doc.txt"}', 'Read doc'),
+        (?, 'c-1', 'agentdojo', 'SQLI', 'STATIC_CAPABLE', 'CWE-89', 'sql_exec', true, true, true, 'L2_QWEN3_GUARD', 0.95, 42.0, 0, 'BLOCKED', '{"query": "DROP TABLE"}', 'Admin query'),
+        (?, 'c-2', 'agentdojo', 'PROMPT_INJECTION', 'SEMANTIC_REQUIRED', 'CWE-77', 'search', true, false, false, 'L2_QWEN3_GUARD', 0.20, 51.0, 0, 'ALLOWED', '{"query": "Ignore prompt"}', 'Web search'),
+        (?, 'c-3', 'agentdojo', 'BENIGN', 'STATIC_CAPABLE', 'None', 'read_file', false, false, true, 'L2_QWEN3_GUARD', 0.05, 38.0, 0, 'ALLOWED', '{"path": "doc.txt"}', 'Read doc'),
 
         (?, 'c-1', 'agentdojo', 'SQLI', 'STATIC_CAPABLE', 'CWE-89', 'sql_exec', true, true, true, 'L2_GRANITE_GUARDIAN', 0.98, 230.0, 0, 'BLOCKED', '{"query": "DROP TABLE"}', 'Admin query'),
         (?, 'c-2', 'agentdojo', 'PROMPT_INJECTION', 'SEMANTIC_REQUIRED', 'CWE-77', 'search', true, true, true, 'L2_GRANITE_GUARDIAN', 0.89, 260.0, 0, 'BLOCKED', '{"query": "Ignore prompt"}', 'Web search'),
@@ -63,7 +63,7 @@ def test_cross_model_comparison_qwen_vs_granite(client):
         assert resp_runs.status_code == 200
         runs_list = resp_runs.json()
         model_names = [r["model_name"] for r in runs_list if r["run_id"] in (run_qwen, run_granite)]
-        assert "qwen-coder" in model_names
+        assert "qwen3guard" in model_names
         assert "granite-guardian" in model_names
 
         # 2. Verify compare endpoint between Qwen and Granite
@@ -71,7 +71,7 @@ def test_cross_model_comparison_qwen_vs_granite(client):
         assert resp_compare.status_code == 200
         comp_data = resp_compare.json()
 
-        assert comp_data["run_a"]["model_name"] == "qwen-coder"
+        assert comp_data["run_a"]["model_name"] == "qwen3guard"
         assert comp_data["run_b"]["model_name"] == "granite-guardian"
 
         stats = comp_data["agreement_stats"]
