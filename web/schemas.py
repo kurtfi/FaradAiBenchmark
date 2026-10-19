@@ -13,11 +13,17 @@ from pydantic import BaseModel, Field
 
 class DatasetItem(BaseModel):
     """Metadata describing an available Parquet benchmark dataset."""
+    id: str = Field(..., description="Unique dataset identifier or slug")
     name: str = Field(..., description="Display name of the dataset (e.g. master_benchmark)")
+    filename: str = Field("", description="File name of the Parquet dataset")
     path: str = Field(..., description="Absolute or relative file path on server")
-    cases: int = Field(..., description="Total number of standardized test cases")
-    size_mb: float = Field(..., description="File size on disk in megabytes")
-    description: str = Field(..., description="Summary of covered threat domains")
+    rows: int = Field(0, description="Total number of standardized test cases")
+    cases: int = Field(0, description="Total number of standardized test cases")
+    static_rows: int = Field(0, description="Count of STATIC_CAPABLE cases")
+    semantic_rows: int = Field(0, description="Count of SEMANTIC_REQUIRED cases")
+    size_kb: float = Field(0.0, description="File size on disk in kilobytes")
+    size_mb: float = Field(0.0, description="File size on disk in megabytes")
+    description: str = Field("", description="Summary of covered threat domains")
     source: str = Field("Parquet", description="Storage format or origin")
 
 
@@ -25,10 +31,13 @@ class ModelItem(BaseModel):
     """Registered security evaluation model adapter."""
     id: str = Field(..., description="Model identifier key (e.g. laya-mlx, qwen3guard)")
     name: str = Field(..., description="Human-readable display name")
-    backend: str = Field(..., description="Execution runtime (MLX, PyTorch, Heuristic)")
-    description: str = Field(..., description="Model capabilities and intended scope")
-    quantization: str = Field(..., description="Quantization profile (4-bit, fp16)")
+    backend: str = Field("MLX", description="Execution runtime (MLX, PyTorch, Heuristic)")
+    description: str = Field("", description="Model capabilities and intended scope")
+    icon: str = Field("🛡️", description="UI display emoji/icon")
+    status: str = Field("available", description="Model availability status")
+    quantization: str = Field("4-bit", description="Quantization profile (4-bit, fp16)")
     loaded: bool = Field(False, description="Whether weights are currently resident in memory")
+
 
 
 # ─── Benchmark Runs ───────────────────────────────────────────────────────────

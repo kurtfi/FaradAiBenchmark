@@ -120,18 +120,19 @@ def init_db():
 
 # ─── Model Adapter Registry (mirrors benchmark_runner.py) ───────────────────
 
-def get_available_models() -> List[Dict[str, str]]:
+def get_available_models() -> List[Dict[str, Any]]:
     """Return list of available model adapters."""
     models = [
-        {"id": "hybrid-cascade", "name": "Hybrid Cascade (L1 + L2)", "description": "Two-stage fail-fast static rules + SLM semantic engine", "icon": "🚀", "status": "available"},
-        {"id": "laya-mlx", "name": "Laya MLX", "description": "Local Apple Silicon — Laya OWASP Guard", "icon": "🍎", "status": "available"},
-        {"id": "qwen3guard", "name": "Qwen3Guard-0.6B", "description": "Alibaba dedicated tool & agent safety classifier (MLX 0.6B)", "icon": "🛡️", "status": "available"},
-        {"id": "granite-guardian", "name": "IBM Granite Guardian 3.0-2B", "description": "Enterprise agentic risk & tool safety classifier (MLX)", "icon": "🛡️", "status": "available"},
-        {"id": "llama-guard-3", "name": "Meta Llama Guard 3 1B", "description": "MLCommons agent safety & misuse detection (MLX)", "icon": "🦙", "status": "available"},
-        {"id": "prompt-guard", "name": "Prompt-Guard-86M", "description": "Ultra-fast (<25ms) indirect prompt injection classifier (MPS)", "icon": "⚡", "status": "available"},
-        {"id": "shield-gemma", "name": "Google ShieldGemma 2B", "description": "Policy-based safety classifier (MLX)", "icon": "💎", "status": "available"},
-        {"id": "l1-rules", "name": "L1 Static Rules", "description": "Declarative YAML Regex Engine (<0.2ms)", "icon": "⚡", "status": "available"},
-        {"id": "mock", "name": "Mock (Heuristic)", "description": "Heuristic baseline rule testing engine", "icon": "🧪", "status": "available"},
+        {"id": "hybrid-cascade", "name": "Hybrid Cascade (L1 + L2)", "description": "Two-stage fail-fast static rules + SLM semantic engine", "icon": "🚀", "status": "available", "backend": "Hybrid", "quantization": "Mixed", "loaded": False},
+        {"id": "laya-mlx", "name": "Laya MLX", "description": "Local Apple Silicon — Laya OWASP Guard", "icon": "🍎", "status": "available", "backend": "MLX", "quantization": "4-bit", "loaded": False},
+        {"id": "kev-0.8b", "name": "Kev-0.8B", "description": "Jared Palmer Decision Model — Qwen3.5 0.8B (<1GB RAM)", "icon": "⚡", "status": "available", "backend": "MLX", "quantization": "4-bit", "loaded": False},
+        {"id": "qwen3guard", "name": "Qwen3Guard-0.6B", "description": "Alibaba dedicated tool & agent safety classifier (MLX 0.6B)", "icon": "🛡️", "status": "available", "backend": "MLX", "quantization": "4-bit", "loaded": False},
+        {"id": "granite-guardian", "name": "IBM Granite Guardian 3.0-2B", "description": "Enterprise agentic risk & tool safety classifier (MLX)", "icon": "🛡️", "status": "available", "backend": "MLX", "quantization": "4-bit", "loaded": False},
+        {"id": "llama-guard-3", "name": "Meta Llama Guard 3 1B", "description": "MLCommons agent safety & misuse detection (MLX)", "icon": "🦙", "status": "available", "backend": "MLX", "quantization": "4-bit", "loaded": False},
+        {"id": "prompt-guard", "name": "Prompt-Guard-86M", "description": "Ultra-fast (<25ms) indirect prompt injection classifier (MPS)", "icon": "⚡", "status": "available", "backend": "MPS", "quantization": "fp16", "loaded": False},
+        {"id": "shield-gemma", "name": "Google ShieldGemma 2B", "description": "Policy-based safety classifier (MLX)", "icon": "💎", "status": "available", "backend": "MLX", "quantization": "4-bit", "loaded": False},
+        {"id": "l1-rules", "name": "L1 Static Rules", "description": "Declarative YAML Regex Engine (<0.2ms)", "icon": "⚡", "status": "available", "backend": "Python/Regex", "quantization": "None", "loaded": True},
+        {"id": "mock", "name": "Mock (Heuristic)", "description": "Heuristic baseline rule testing engine", "icon": "🧪", "status": "available", "backend": "Heuristic", "quantization": "None", "loaded": True},
     ]
     # Check if laya_mlx is actually importable
     try:
@@ -167,11 +168,16 @@ def get_available_datasets() -> List[Dict[str, Any]]:
             "filename": pq_file.name,
             "path": str(pq_file),
             "rows": row_count,
+            "cases": row_count,
             "static_rows": tier_rows.get("STATIC_CAPABLE", 0),
             "semantic_rows": tier_rows.get("SEMANTIC_REQUIRED", 0),
             "size_kb": round(size_kb, 1),
+            "size_mb": round(size_kb / 1024, 2),
+            "description": f"Standardized Parquet dataset ({row_count:,} cases)",
+            "source": "Parquet",
         })
     return datasets
+
 
 
 # ─── Active WebSocket Connections ────────────────────────────────────────────
@@ -507,9 +513,17 @@ async def api_start_run(payload: RunCreateRequest) -> Dict[str, Any]:
     # Effective model display name showing whether L1 is active
     model_display_names = {
         "laya-mlx": "Laya MLX",
+        "kev-0.8b": "Kev-0.8B",
+        "kev": "Kev-0.8B",
+        "qwen3guard": "Qwen3Guard-0.6B",
+        "granite-guardian": "Granite Guardian 3.0",
+        "llama-guard-3": "Llama Guard 3 1B",
+        "prompt-guard": "Prompt-Guard-86M",
+        "shield-gemma": "ShieldGemma 2B",
         "mock": "Mock",
         "l1-rules": "L1 Static Rules"
     }
+
     base_display = model_display_names.get(model_name, model_name)
     if model_name in ("l1-rules", "l1_rules"):
         effective_model_name = "L1 Static Rules"
