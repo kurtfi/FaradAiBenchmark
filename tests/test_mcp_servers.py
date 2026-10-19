@@ -119,8 +119,9 @@ def test_factory_fail_safe_fallback_on_adapter_error():
 
 
 def test_standalone_mcp_entrypoints():
-    """Verify all 4 standalone zero-flag entrypoints initialize valid FastMCP instances."""
+    """Verify all 5 standalone zero-flag entrypoints initialize valid FastMCP instances."""
     import granite_security_guard_mcp
+    import kev_security_guard_mcp
     import llama_security_guard_mcp
     import prompt_security_guard_mcp
     import qwen_security_guard_mcp
@@ -129,3 +130,5 @@ def test_standalone_mcp_entrypoints():
     assert isinstance(granite_security_guard_mcp.mcp, FastMCP)
     assert isinstance(llama_security_guard_mcp.mcp, FastMCP)
     assert isinstance(prompt_security_guard_mcp.mcp, FastMCP)
+    assert isinstance(kev_security_guard_mcp.mcp, FastMCP)
+

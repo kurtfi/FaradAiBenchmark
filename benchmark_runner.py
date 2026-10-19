@@ -27,10 +27,12 @@ PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 
 from adapters.base import BaseModelAdapter
 from adapters.granite_guardian_adapter import GraniteGuardianAdapter
+from adapters.kev_adapter import KevSecurityAdapter
 from adapters.llama_guard_adapter import LlamaGuardAdapter
 from adapters.prompt_guard_adapter import PromptGuardAdapter
 from adapters.qwen_guard_adapter import Qwen3GuardAdapter
 from adapters.shield_gemma_adapter import ShieldGemmaAdapter
+
 
 
 class LayaMLXAdapter(BaseModelAdapter):
@@ -219,6 +221,8 @@ ADAPTER_REGISTRY: Dict[str, type] = {
     "hybrid-cascade": HybridCascadeAdapter,
     "laya-mlx": LayaMLXAdapter,
     "l1-rules": L1StaticAdapter,
+    "kev-0.8b": KevSecurityAdapter,
+    "kev": KevSecurityAdapter,
     "qwen3guard": Qwen3GuardAdapter,
     "qwen-guard": Qwen3GuardAdapter,
     "granite-guardian": GraniteGuardianAdapter,
@@ -227,6 +231,7 @@ ADAPTER_REGISTRY: Dict[str, type] = {
     "shield-gemma": ShieldGemmaAdapter,
     "mock": MockSecurityAdapter
 }
+
 
 
 def run_benchmark(dataset_path: Path, model_name: str, limit: int = None):
