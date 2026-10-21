@@ -1,5 +1,5 @@
 /**
- * Faraday Laya Guard — Dashboard Frontend Logic
+ * Farad Ai Benchmark — Dashboard Frontend Logic
  * WebSocket real-time progress + REST API integration
  */
 

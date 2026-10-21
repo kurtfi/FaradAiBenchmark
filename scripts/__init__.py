@@ -1,1 +1,1 @@
-"""Scripts package for Faraday Laya Guard benchmark pipeline."""
+"""Scripts package for Farad Ai Benchmark benchmark pipeline."""

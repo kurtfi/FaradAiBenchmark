@@ -2,12 +2,12 @@
 
 * **Date:** 2026-10-18
 * **Status:** Accepted
-* **Scope:** Faraday Laya Guard / L2 Semantic Inspection Engines & FastMCP Services
+* **Scope:** Farad Ai Benchmark / L2 Semantic Inspection Engines & FastMCP Services
 
 ---
 
 ## 1. Context and Problem Statement
-Faraday Guard uses `Laya MLX` as its primary L2 semantic engine, taking advantage of its non-autoregressive decision model architecture (ModernBERT backbone) to output calibrated boolean decision probabilities (`noul`) in a single forward pass without token-by-token generation overhead.
+Farad Ai Benchmark uses `Laya MLX` as its primary L2 semantic engine, taking advantage of its non-autoregressive decision model architecture (ModernBERT backbone) to output calibrated boolean decision probabilities (`noul`) in a single forward pass without token-by-token generation overhead.
 
 Recently, Jared Palmer introduced **Kev** (`jaredpalmer/kev`), an open-source family of typed decision models (Apache-2.0) built on Qwen backbones with custom pointer heads, implementing TypeSafe's System One (`/v1/systemone`) contract.
 
@@ -36,7 +36,7 @@ To evaluate whether Kev can serve as an effective alternative or complement to L
 
 ### Decision 4: Standalone FastMCP Entrypoint via Guard MCP Factory
 * **Decision:** In accordance with ADR 0007 Decision 5, `guard_mcp_factory.py` will generate `kev_security_guard_mcp.py` as an independent zero-flag FastMCP entrypoint.
-* **Rationale:** Enables direct drop-in integration into Faraday Gateway or Claude Code as a standalone inspection MCP server.
+* **Rationale:** Enables direct drop-in integration into FaradAiWire or Claude Code as a standalone inspection MCP server.
 
 ---
 

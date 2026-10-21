@@ -1,4 +1,4 @@
-# 🛡️ Faraday Laya Guard: Model-Agnostic Security Benchmark Pipeline
+# 🛡️ Farad Ai Benchmark: Model-Agnostic Security Benchmark Pipeline
 
 High-performance security benchmark pipeline and **Fail-Fast Cascade** guardrail engine designed for evaluating, validating, and benchmarking Model Context Protocol (MCP) and agentic LLM security boundaries.
 
@@ -6,7 +6,7 @@ High-performance security benchmark pipeline and **Fail-Fast Cascade** guardrail
 
 ## 🏛️ Architecture Overview
 
-Faraday Laya Guard processes all inspection targets through a two-tiered hybrid evaluation pipeline:
+Farad Ai Benchmark processes all inspection targets through a two-tiered hybrid evaluation pipeline:
 
 ```mermaid
 flowchart TD
@@ -106,7 +106,7 @@ Core endpoints:
 
 ## 🔌 Model Context Protocol (FastMCP) Integration
 
-Faraday Guard can be run as an independent Model Context Protocol (MCP) server, integrating directly into Claude Desktop, Cursor IDE, or Faraday Gateway over JSON-RPC stdio:
+Farad Ai Benchmark can be run as an independent Model Context Protocol (MCP) server, integrating directly into Claude Desktop, Cursor IDE, or FaradAiWire over JSON-RPC stdio:
 
 ### Claude Desktop / Cursor Configuration (`claude_desktop_config.json`)
 ```json
@@ -116,7 +116,7 @@ Faraday Guard can be run as an independent Model Context Protocol (MCP) server, 
       "command": "/bin/sh",
       "args": [
         "-c",
-        "cd /Users/firatkurt/Documents/Repos/FaradayLayaBenchmark && .venv/bin/python laya_security_guard_mcp.py"
+        "cd /Users/firatkurt/Documents/Repos/FaradAiBenchmark && .venv/bin/python laya_security_guard_mcp.py"
       ]
     }
   }

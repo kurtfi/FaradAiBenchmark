@@ -1,4 +1,4 @@
-# Faraday Laya Guard: Issue Tracker & Roadmap
+# Farad Ai Benchmark: Issue Tracker & Roadmap
 
 This document indexes all vertical slice issues (tracer bullets) across project specifications.
 

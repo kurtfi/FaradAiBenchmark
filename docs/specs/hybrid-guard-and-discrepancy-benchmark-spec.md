@@ -11,7 +11,7 @@
 ## 1. Executive Summary & Goals
 
 ### 1.1 Project Objective
-Faraday Laya Guard is a high-throughput security guardrail inspecting data leaks (DLP), code/command injection attacks, and unauthorized agentic actions transmitted between LLMs and Model Context Protocol (MCP) tools.
+Farad Ai Benchmark is a high-throughput security guardrail inspecting data leaks (DLP), code/command injection attacks, and unauthorized agentic actions transmitted between LLMs and Model Context Protocol (MCP) tools.
 
 This specification defines the engineering blueprint to scientifically and reproducibly measure performance, latency, and accuracy differences between **deterministic static rules (L1)** and **local semantic small language models (L2 / Laya MLX)** across a 10,000+ benchmark case pool.
 
@@ -72,11 +72,11 @@ This specification defines the engineering blueprint to scientifically and repro
 
 ## 3. Architectural Decision Records Index (ADR Index)
 
-* **[ADR 0001: Model-Agnostic Benchmark Pipeline](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/docs/adr/0001-benchmark-dataset-pipeline-and-storage.md):** Parquet storage and in-memory DuckDB query standard.
-* **[ADR 0002: Analysis Tier Classification](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/docs/adr/0002-analysis-tier-classification.md):** Introducing the `analysis_tier` column (`STATIC_CAPABLE`, `SEMANTIC_REQUIRED`, `HYBRID`).
-* **[ADR 0003: Fail-Fast Cascade Hybrid Architecture](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/docs/adr/0003-fail-fast-cascade-hybrid-architecture.md):** Intercepting violations at L1 before invoking GPU inference.
-* **[ADR 0004: Relational Evaluation Storage & Discrepancy Analysis](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/docs/adr/0004-relational-evaluation-storage-and-discrepancy-analysis.md):** `run_case_evaluations` table for 10K+ cases and SQL discrepancy joins.
-* **[ADR 0005: Declarative YAML Rule Architecture](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/docs/adr/0005-declarative-yaml-rules-for-l1-engine.md):** Managing L1 rules in `rules/*.yaml` files with startup precompilation.
+* **[ADR 0001: Model-Agnostic Benchmark Pipeline](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/docs/adr/0001-benchmark-dataset-pipeline-and-storage.md):** Parquet storage and in-memory DuckDB query standard.
+* **[ADR 0002: Analysis Tier Classification](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/docs/adr/0002-analysis-tier-classification.md):** Introducing the `analysis_tier` column (`STATIC_CAPABLE`, `SEMANTIC_REQUIRED`, `HYBRID`).
+* **[ADR 0003: Fail-Fast Cascade Hybrid Architecture](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/docs/adr/0003-fail-fast-cascade-hybrid-architecture.md):** Intercepting violations at L1 before invoking GPU inference.
+* **[ADR 0004: Relational Evaluation Storage & Discrepancy Analysis](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/docs/adr/0004-relational-evaluation-storage-and-discrepancy-analysis.md):** `run_case_evaluations` table for 10K+ cases and SQL discrepancy joins.
+* **[ADR 0005: Declarative YAML Rule Architecture](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/docs/adr/0005-declarative-yaml-rules-for-l1-engine.md):** Managing L1 rules in `rules/*.yaml` files with startup precompilation.
 
 ---
 

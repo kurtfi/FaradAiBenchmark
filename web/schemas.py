@@ -1,5 +1,5 @@
 """
-web/schemas.py — Faraday Laya Guard: Pydantic v2 OpenAPI API Contracts
+web/schemas.py — Farad Ai Benchmark: Pydantic v2 OpenAPI API Contracts
 
 This module defines type-safe request and response schemas for FastAPI REST API routes.
 Prevents contract drift between the backend and external consumers / UI layers.

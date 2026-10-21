@@ -2,7 +2,7 @@
 
 * **Date:** 2026-10-02
 * **Status:** Accepted
-* **Scope:** Faraday Guard / Benchmark Storage & Comparative Infrastructure
+* **Scope:** Farad Ai Benchmark / Benchmark Storage & Comparative Infrastructure
 
 ---
 

@@ -3,7 +3,7 @@
 * **Spec ID:** SPEC-0003
 * **Title:** Unified Test Cases Dataset Explorer
 * **Status:** Ready for Implementation
-* **Author:** Faraday Laya Guard Core Team
+* **Author:** Farad Ai Benchmark Core Team
 * **Created:** 2026-10-03
 * **Related ADR:** [ADR 0006: Unified Benchmark Case Pool and Streaming Parquet Exploration](../adr/0006-unified-benchmark-case-pool-and-parquet-streaming.md)
 * **Parent Issues:** [ISSUE-006](../issues/ISSUE-006-test-cases-dataset-explorer.md), [ISSUE-007](../issues/ISSUE-007-test-cases-drawer-and-deep-linking.md), [ISSUE-008](../issues/ISSUE-008-test-cases-search-and-sorting.md)
@@ -13,13 +13,13 @@
 ## 1. Executive Summary & Goals
 
 ### 1.1 Problem Statement
-The Faraday Laya Guard security benchmark platform hosts 16,072 normalized test cases designed to evaluate hybrid security guards across LLM and Model Context Protocol (MCP) tool calls. However, these test cases currently reside in static Parquet files on disk. Security researchers and operators cannot inspect prompts, tool arguments, source datasets, or threat classifications directly from the Web Dashboard prior to launching a benchmark run.
+The Farad Ai Benchmark security benchmark platform hosts 16,072 normalized test cases designed to evaluate hybrid security guards across LLM and Model Context Protocol (MCP) tool calls. However, these test cases currently reside in static Parquet files on disk. Security researchers and operators cannot inspect prompts, tool arguments, source datasets, or threat classifications directly from the Web Dashboard prior to launching a benchmark run.
 
 Furthermore, fragmented sub-dataset files in `data/processed/` create confusion regarding which dataset to inspect or run.
 
 ### 1.2 Goals
 1. **Independent Pre-Run Inspection:** Allow operators to explore all test scenarios, raw prompt contexts, JSON tool arguments, CWE IDs, and OWASP categories directly from the web interface, independent of benchmark runs.
-2. **Unified Canonical Pool:** Eliminate fragmented file pickers by querying a single canonical dataset ([`master_benchmark.parquet`](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/data/processed/master_benchmark.parquet)) with multi-dimensional filtering.
+2. **Unified Canonical Pool:** Eliminate fragmented file pickers by querying a single canonical dataset ([`master_benchmark.parquet`](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/data/processed/master_benchmark.parquet)) with multi-dimensional filtering.
 3. **Zero-Copy Streaming Pagination:** Stream row slices directly from disk using DuckDB `LIMIT / OFFSET` pagination (page sizes: 20, 50, 100), avoiding bulk in-memory buffering.
 4. **Exact Substring Payload Search:** Fast, sub-50ms case-insensitive substring search (`ILIKE`) that preserves special attack characters (`' OR 1=1`, `../../etc/passwd`).
 5. **Shareability via Deep-Linking:** Synchronize active tab, pagination, filters, and selected case details with the browser URL hash for immediate bookmarking and triage sharing.
@@ -97,7 +97,7 @@ Furthermore, fragmented sub-dataset files in `data/processed/` create confusion 
 ## 4. Data Models & API Contracts
 
 ### 4.1 Domain Entity: Benchmark Case
-Canonical schema of records within the `Benchmark Case Pool` ([CONTEXT.md](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/CONTEXT.md#L24)):
+Canonical schema of records within the `Benchmark Case Pool` ([CONTEXT.md](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/CONTEXT.md#L24)):
 
 | Field Name | Type | Description | Example |
 |---|---|---|---|

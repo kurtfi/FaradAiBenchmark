@@ -2,7 +2,7 @@
 
 * **Date:** 2026-10-02
 * **Status:** Accepted
-* **Scope:** Faraday Guard / L1 Static Rule Management
+* **Scope:** Farad Ai Benchmark / L1 Static Rule Management
 
 ---
 

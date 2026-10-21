@@ -2,7 +2,7 @@
 
 * **Date:** 2026-10-02
 * **Status:** Accepted
-* **Scope:** Faraday Guard / Two-Tiered Hybrid Inspection Engine
+* **Scope:** Farad Ai Benchmark / Two-Tiered Hybrid Inspection Engine
 
 ---
 

@@ -2,7 +2,7 @@
 
 * **Date:** 2026-09-30
 * **Status:** Accepted
-* **Scope:** Faraday Guard / Security Testing Infrastructure
+* **Scope:** Farad Ai Benchmark / Security Testing Infrastructure
 
 ---
 

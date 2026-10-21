@@ -4,14 +4,14 @@
 * **Date:** 2026-10-03
 * **Status:** Approved / Ready for Implementation
 * **Scope:** L2 SLM Model Candidates (Qwen, Granite, Llama Guard, ShieldGemma, Prompt-Guard), Shared FastMCP Factory, Normalized Output Contract, Two-Phased Leaderboard Matrix
-* **Related ADRs:** ADR 0001, ADR 0002, ADR 0003, ADR 0004, ADR 0006, [ADR 0007](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/docs/adr/0007-multi-slm-l2-adapter-and-benchmark-architecture.md)
+* **Related ADRs:** ADR 0001, ADR 0002, ADR 0003, ADR 0004, ADR 0006, [ADR 0007](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/docs/adr/0007-multi-slm-l2-adapter-and-benchmark-architecture.md)
 
 ---
 
 ## 1. Executive Summary & Goals
 
 ### 1.1 Project Overview
-In Faraday Laya Guard, semantic threat inspection at the L2 tier is currently handled by the local `Laya MLX` engine. However, in real-world agentic workflows, the arguments emitted by LLMs (`tool_arguments`) are rarely simple conversational text; they primarily consist of shell commands (Bash), SQL queries, file paths, regexes, and structured JSON payloads.
+In Farad Ai Benchmark, semantic threat inspection at the L2 tier is currently handled by the local `Laya MLX` engine. However, in real-world agentic workflows, the arguments emitted by LLMs (`tool_arguments`) are rarely simple conversational text; they primarily consist of shell commands (Bash), SQL queries, file paths, regexes, and structured JSON payloads.
 
 This specification defines the engineering blueprint to benchmark **safety-specialized SLMs (Qwen3Guard-0.6B)**, **agentic tool-safety models (IBM Granite Guardian 3.1-2B)**, and **lightweight safety moderators (Meta Llama Guard 3, ShieldGemma, Prompt-Guard)** against Laya under identical hardware conditions (Apple Silicon Metal / MLX). Additionally, it specifies how to package these models into standalone, plug-and-play FastMCP servers.
 
@@ -87,12 +87,12 @@ This specification defines the engineering blueprint to benchmark **safety-speci
 
 ## 3. Architectural Decision Records (ADRs) Index
 
-* **[ADR 0001: Model-Agnostic Benchmark Pipeline & Storage](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/docs/adr/0001-benchmark-dataset-pipeline-and-storage.md):** Parquet storage standard and in-memory DuckDB querying.
-* **[ADR 0002: Analysis Tier Classification](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/docs/adr/0002-analysis-tier-classification.md):** Isolation of `STATIC_CAPABLE`, `SEMANTIC_REQUIRED`, and `HYBRID` test cases.
-* **[ADR 0003: Fail-Fast Cascade Hybrid Architecture](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/docs/adr/0003-fail-fast-cascade-hybrid-architecture.md):** Low-latency L1 short-circuiting prior to L2 invocation.
-* **[ADR 0004: Relational Evaluation Storage & Discrepancy Analysis](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/docs/adr/0004-relational-evaluation-storage-and-discrepancy-analysis.md):** Relational schema for `evaluation_runs` and `run_case_evaluations`.
-* **[ADR 0006: Unified Benchmark Case Pool](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/docs/adr/0006-unified-benchmark-case-pool-and-parquet-streaming.md):** Single-source evaluation via `master_benchmark.parquet`.
-* **[ADR 0007: Multi-SLM L2 Adapters and Comparative Benchmark Architecture](file:///Users/firatkurt/Documents/Repos/faraday-laya-guard/docs/adr/0007-multi-slm-l2-adapter-and-benchmark-architecture.md):** Standardized 4-bit quantization baseline, decoupled adapter/wrapper architecture, probability normalization, and FastMCP factory pattern.
+* **[ADR 0001: Model-Agnostic Benchmark Pipeline & Storage](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/docs/adr/0001-benchmark-dataset-pipeline-and-storage.md):** Parquet storage standard and in-memory DuckDB querying.
+* **[ADR 0002: Analysis Tier Classification](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/docs/adr/0002-analysis-tier-classification.md):** Isolation of `STATIC_CAPABLE`, `SEMANTIC_REQUIRED`, and `HYBRID` test cases.
+* **[ADR 0003: Fail-Fast Cascade Hybrid Architecture](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/docs/adr/0003-fail-fast-cascade-hybrid-architecture.md):** Low-latency L1 short-circuiting prior to L2 invocation.
+* **[ADR 0004: Relational Evaluation Storage & Discrepancy Analysis](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/docs/adr/0004-relational-evaluation-storage-and-discrepancy-analysis.md):** Relational schema for `evaluation_runs` and `run_case_evaluations`.
+* **[ADR 0006: Unified Benchmark Case Pool](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/docs/adr/0006-unified-benchmark-case-pool-and-parquet-streaming.md):** Single-source evaluation via `master_benchmark.parquet`.
+* **[ADR 0007: Multi-SLM L2 Adapters and Comparative Benchmark Architecture](file:///Users/firatkurt/Documents/Repos/FaradAiBenchmark/docs/adr/0007-multi-slm-l2-adapter-and-benchmark-architecture.md):** Standardized 4-bit quantization baseline, decoupled adapter/wrapper architecture, probability normalization, and FastMCP factory pattern.
 
 ---
 
@@ -200,18 +200,18 @@ Results from multi-model runs are stored in `data/db/evaluations.duckdb`:
 ```
 
 ### 5.2 FastMCP Server Configuration
-Client environments (Claude Desktop, Cursor, FaradayGateway) configure the guard servers with zero additional flags:
+Client environments (Claude Desktop, Cursor, FaradAiWire) configure the guard servers with zero additional flags:
 
 ```json
 {
   "mcpServers": {
     "qwen-guard": {
       "command": "python",
-      "args": ["/path/to/faraday-laya-guard/qwen_security_guard_mcp.py"]
+      "args": ["/path/to/farad-ai-benchmark/qwen_security_guard_mcp.py"]
     },
     "granite-guard": {
       "command": "python",
-      "args": ["/path/to/faraday-laya-guard/granite_security_guard_mcp.py"]
+      "args": ["/path/to/farad-ai-benchmark/granite_security_guard_mcp.py"]
     }
   }
 }

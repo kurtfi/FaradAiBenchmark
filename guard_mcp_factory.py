@@ -58,7 +58,7 @@ def create_guard_mcp(
     """Construct a FastMCP server wrapping the specified BaseModelAdapter.
 
     Exposes the standardized `inspect_tool_call` MCP tool conforming to
-    FaradayGateway, Claude Desktop, and Cursor JSON-RPC contracts.
+    FaradAiWire, Claude Desktop, and Cursor JSON-RPC contracts.
 
     Args:
         server_name: Human-readable name for the FastMCP server instance.

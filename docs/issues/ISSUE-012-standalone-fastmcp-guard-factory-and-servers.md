@@ -5,7 +5,7 @@
 - **Architectural Decision:** [ADR 0007: Multi-SLM L2 Adapters and Comparative Benchmark Architecture](../adr/0007-multi-slm-l2-adapter-and-benchmark-architecture.md)
 
 ## What to build
-Build the shared `guard_mcp_factory.py` builder and generate standalone, zero-flag FastMCP executable servers for each model adapter so they can be plugged into IDEs (Cursor, Claude Code) and `FaradayGateway` via standard JSON-RPC over stdio.
+Build the shared `guard_mcp_factory.py` builder and generate standalone, zero-flag FastMCP executable servers for each model adapter so they can be plugged into IDEs (Cursor, Claude Code) and `FaradAiWire` via standard JSON-RPC over stdio.
 
 This vertical slice includes:
 1. **MCP Factory Engine (`guard_mcp_factory.py`):**

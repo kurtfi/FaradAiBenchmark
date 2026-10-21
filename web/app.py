@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-web/app.py — Faraday Laya Guard: Benchmark Dashboard Backend
+web/app.py — Farad Ai Benchmark: Benchmark Dashboard Backend
 
 FastAPI server with:
 - REST API for datasets, models, run history
@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
     BaseModelAdapter.configure_memory_limits(1024)
     yield
 
-app = FastAPI(title="Faraday Laya Guard", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Farad Ai Benchmark", version="1.0.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=WEB_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=WEB_DIR / "templates")
 

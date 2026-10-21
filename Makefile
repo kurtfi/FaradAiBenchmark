@@ -5,7 +5,7 @@ UV := uv
 
 help:
 	@echo "════════════════════════════════════════════════════════════"
-	@echo " 🛡️  Faraday Laya Guard: Security Benchmark Pipeline"
+	@echo " 🛡️  Farad Ai Benchmark: Security Benchmark Pipeline"
 	@echo "════════════════════════════════════════════════════════════"
 	@echo ""
 	@echo "  Onboarding:"
@@ -38,12 +38,12 @@ setup-check:
 	fi
 
 quickstart: setup-check
-	@echo "🚀 Launching Faraday Laya Guard..."
+	@echo "🚀 Launching Farad Ai Benchmark..."
 	@if [ ! -f data/processed/smoke_test_2k.parquet ]; then \
 		echo "📦 Generating sample benchmark dataset..."; \
 		$(PYTHON) scripts/sample_dataset.py --size 2000; \
 	fi
-	@echo "🛡️  Faraday Laya Guard Dashboard → http://localhost:$(if $(PORT),$(PORT),8765)"
+	@echo "🛡️  Farad Ai Benchmark Dashboard → http://localhost:$(if $(PORT),$(PORT),8765)"
 	$(PYTHON) -m uvicorn web.app:app --host 0.0.0.0 --port $(if $(PORT),$(PORT),8765) --reload
 
 setup:
@@ -76,7 +76,7 @@ test-unit:
 	$(PYTHON) -m pytest -v tests/
 
 web:
-	@echo "🛡️  Faraday Laya Guard Dashboard → http://localhost:$(if $(PORT),$(PORT),8765)"
+	@echo "🛡️  Farad Ai Benchmark Dashboard → http://localhost:$(if $(PORT),$(PORT),8765)"
 	$(PYTHON) -m uvicorn web.app:app --host 0.0.0.0 --port $(if $(PORT),$(PORT),8765) --reload
 
 clean:

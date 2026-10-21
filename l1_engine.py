@@ -1,7 +1,7 @@
 """
 l1_engine.py
 
-Declarative L1 Static Security Rule Engine for Faraday Laya Guard.
+Declarative L1 Static Security Rule Engine for Farad Ai Benchmark.
 Loads declarative YAML security rules from rules/ directory, precompiles regex patterns,
 and performs sub-millisecond (<0.2ms) signature inspection over MCP tool calls.
 Adheres to ADR 0005 and SPEC-0002.

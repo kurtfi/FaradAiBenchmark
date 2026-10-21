@@ -1,4 +1,4 @@
-# Context & Domain Model: Faraday Laya Guard
+# Context & Domain Model: Farad Ai Benchmark
 
 Glossary and ubiquitous language for the benchmark and evaluation platform.
 
