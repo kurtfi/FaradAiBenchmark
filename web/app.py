@@ -131,6 +131,9 @@ def get_available_models() -> List[Dict[str, Any]]:
         {"id": "llama-guard-3", "name": "Meta Llama Guard 3 1B", "description": "MLCommons agent safety & misuse detection (MLX)", "icon": "🦙", "status": "available", "backend": "MLX", "quantization": "4-bit", "loaded": False},
         {"id": "prompt-guard", "name": "Prompt-Guard-86M", "description": "Ultra-fast (<25ms) indirect prompt injection classifier (MPS)", "icon": "⚡", "status": "available", "backend": "MPS", "quantization": "fp16", "loaded": False},
         {"id": "shield-gemma", "name": "Google ShieldGemma 2B", "description": "Policy-based safety classifier (MLX)", "icon": "💎", "status": "available", "backend": "MLX", "quantization": "4-bit", "loaded": False},
+        {"id": "ollama-d1", "name": "Liquid AI d1-3B", "description": "LFM2.5-VL non-autoregressive decision model (Ollama)", "icon": "💧", "status": "available", "backend": "Ollama", "quantization": "Q4", "loaded": False},
+        {"id": "ollama-pplx-decider", "name": "Perplexity Decider Flash v1.2", "description": "Distilled Qwen3.5-4B calibrated probability model (Ollama)", "icon": "⚡", "status": "available", "backend": "Ollama", "quantization": "Q4", "loaded": False},
+        {"id": "ollama-mica", "name": "Mica v0.5-4B", "description": "TypeSafe SystemOne decision model (Ollama)", "icon": "💎", "status": "available", "backend": "Ollama", "quantization": "Q4", "loaded": False},
         {"id": "l1-rules", "name": "L1 Static Rules", "description": "Declarative YAML Regex Engine (<0.2ms)", "icon": "⚡", "status": "available", "backend": "Python/Regex", "quantization": "None", "loaded": True},
         {"id": "mock", "name": "Mock (Heuristic)", "description": "Heuristic baseline rule testing engine", "icon": "🧪", "status": "available", "backend": "Heuristic", "quantization": "None", "loaded": True},
     ]
@@ -520,6 +523,14 @@ async def api_start_run(payload: RunCreateRequest) -> Dict[str, Any]:
         "llama-guard-3": "Llama Guard 3 1B",
         "prompt-guard": "Prompt-Guard-86M",
         "shield-gemma": "ShieldGemma 2B",
+        "ollama-d1": "Liquid AI d1-3B",
+        "liquid-d1": "Liquid AI d1-3B",
+        "d1": "Liquid AI d1-3B",
+        "ollama-pplx-decider": "Perplexity Decider Flash",
+        "pplx-decider": "Perplexity Decider Flash",
+        "ollama-mica": "Mica v0.5-4B",
+        "mica-v0.5": "Mica v0.5-4B",
+        "mica": "Mica v0.5-4B",
         "mock": "Mock",
         "l1-rules": "L1 Static Rules"
     }

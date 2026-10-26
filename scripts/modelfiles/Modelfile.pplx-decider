@@ -1,0 +1,8 @@
+# Modelfile for Perplexity Decider Flash v1.2 Decision Model
+# Base: Qwen3.5-4B Distilled (pplx-decider-flash-v1.2)
+# Source: perplexity-ai/pplx-decider-flash-v1.2
+FROM pplx-decider-flash-v1.2-q4_k_m.gguf
+
+PARAMETER temperature 0.0
+PARAMETER top_p 1.0
+PARAMETER stop "<|im_end|>"
