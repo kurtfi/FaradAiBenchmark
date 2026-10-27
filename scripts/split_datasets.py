@@ -156,6 +156,7 @@ def generate_splits(test_size: int = 2000, seed: int = 42):
             if tier == "STATIC_CAPABLE":
                 buckets["STATIC_MALICIOUS"].append(r)
             else:
+                r["analysis_tier"] = "SEMANTIC_REQUIRED"
                 buckets["SEMANTIC_MALICIOUS"].append(r)
         else:
             if tool in STATIC_BENIGN_TOOLS:

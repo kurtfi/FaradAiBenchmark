@@ -23,6 +23,7 @@ from rich.progress import track
 from rich.table import Table
 
 from benchmark_runner import ADAPTER_REGISTRY, HybridCascadeAdapter
+from adapters.experiment_registry import init_experiment_registry, get_template, list_templates
 
 console = Console()
 
@@ -134,6 +135,7 @@ def init_db(db_path: Path) -> duckdb.DuckDBPyConnection:
         );
         CREATE INDEX IF NOT EXISTS idx_matrix_case_eval ON run_case_evaluations (run_id, correct);
     """)
+    init_experiment_registry(con)
     return con
 
 
@@ -166,6 +168,20 @@ def load_test_cases(dataset_path: Path, limit: int | None = None, smoke: bool = 
         con.close()
 
 
+def resolve_runtime_tier(model_key: str, user_tier: str | None = None) -> str:
+    """Resolve standardized runtime tier badge (ADR 0010)."""
+    if user_tier and user_tier != "UNKNOWN":
+        return user_tier
+    low = model_key.lower()
+    if low.startswith("ollama") or low in ["d1", "pplx-decider", "mica", "liquid-d1"]:
+        return "OLLAMA_DAEMON_HTTP"
+    if "prompt-guard" in low:
+        return "PYTORCH_MPS"
+    if "l1" in low:
+        return "STATIC_RULE_ENGINE"
+    return "MLX_NATIVE_METAL"
+
+
 def evaluate_model_on_cases(
     model_key: str,
     records: list[tuple],
@@ -173,13 +189,33 @@ def evaluate_model_on_cases(
     dataset_path: Path,
     db_con: duckdb.DuckDBPyConnection,
     enable_cascade: bool = False,
+    experiment_id: str | None = None,
+    runtime_tier: str | None = None,
+    thresholds: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """Evaluate one model adapter on test cases and persist results to DuckDB."""
     adapter_cls = ADAPTER_REGISTRY.get(model_key.lower())
     if not adapter_cls:
         raise ValueError(f"Unknown adapter '{model_key}'. Available: {list(ADAPTER_REGISTRY.keys())}")
 
-    raw_adapter = adapter_cls()
+    resolved_tier = resolve_runtime_tier(model_key, runtime_tier)
+
+    # Instantiate adapter with custom thresholds if provided
+    try:
+        if thresholds:
+            valid_kwargs = {}
+            if "threat_threshold" in thresholds:
+                valid_kwargs["threat_threshold"] = thresholds["threat_threshold"]
+            if "exploit_threshold" in thresholds:
+                valid_kwargs["exploit_threshold"] = thresholds["exploit_threshold"]
+            if "misalignment_threshold" in thresholds:
+                valid_kwargs["misalignment_threshold"] = thresholds["misalignment_threshold"]
+            raw_adapter = adapter_cls(**valid_kwargs)
+        else:
+            raw_adapter = adapter_cls()
+    except TypeError:
+        raw_adapter = adapter_cls()
+
     adapter = HybridCascadeAdapter(l2_adapter=raw_adapter) if enable_cascade and model_key != "hybrid-cascade" else raw_adapter
 
     run_id = f"run-{uuid.uuid4().hex[:8]}"
@@ -192,7 +228,7 @@ def evaluate_model_on_cases(
     case_summary_list: list[dict[str, Any]] = []
 
     try:
-        for row in track(records, description=f"Evaluating [bold cyan]{model_key}[/bold cyan]..."):
+        for row in track(records, description=f"Evaluating [bold cyan]{model_key}[/bold cyan] ({resolved_tier})..."):
             case_id, source, domain, tier, cwe, tool_name, args_raw, context, is_malicious = row
 
             try:
@@ -271,21 +307,21 @@ def evaluate_model_on_cases(
         p95_idx = int(len(sorted_lats) * 0.95)
         p95_latency = sorted_lats[p95_idx] if sorted_lats else 0.0
 
-        # Persist summary to run_history
+        # Persist summary to run_history with experiment_id and runtime_tier (ADR 0010)
         db_con.execute("""
             INSERT INTO run_history (
                 run_id, dataset_name, dataset_path, model_name, status,
                 total_cases, evaluated, tp, tn, fp, fn,
                 accuracy, precision_val, recall_val, f1_score, fpr,
                 avg_latency_ms, p95_latency_ms, category_stats, case_results,
-                started_at, completed_at, duration_secs
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                started_at, completed_at, duration_secs, experiment_id, runtime_tier
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, [
             run_id, dataset_name, str(dataset_path), model_key, "completed",
             total, total, tp, tn, fp, fn,
             accuracy, precision, recall, f1, fpr,
             avg_latency, p95_latency, json.dumps({}), json.dumps(case_summary_list),
-            started_at, completed_at, duration_secs
+            started_at, completed_at, duration_secs, experiment_id, resolved_tier
         ])
 
         # Bulk insert case evaluations
@@ -301,6 +337,7 @@ def evaluate_model_on_cases(
         return {
             "run_id": run_id,
             "model_name": model_key,
+            "runtime_tier": resolved_tier,
             "total_cases": total,
             "accuracy": accuracy,
             "precision": precision,
@@ -334,6 +371,7 @@ def render_leaderboard(results: list[dict[str, Any]]) -> None:
     )
 
     table.add_column("Rank", justify="center", style="bold yellow", width=6)
+    table.add_column("Runtime Tier", justify="center", style="bold", width=16)
     table.add_column("Model Adapter", style="bold cyan", min_width=18)
     table.add_column("Accuracy", justify="right")
     table.add_column("Precision", justify="right")
@@ -351,8 +389,19 @@ def render_leaderboard(results: list[dict[str, Any]]) -> None:
         fpr_style = "green" if res["fpr"] < 0.05 else ("yellow" if res["fpr"] < 0.15 else "red")
         lat_style = "green" if res["avg_latency_ms"] < 25 else ("yellow" if res["avg_latency_ms"] < 200 else "white")
 
+        tier = res.get("runtime_tier", "MLX_NATIVE_METAL")
+        if tier == "OLLAMA_DAEMON_HTTP":
+            tier_badge = "[bold yellow][Ollama][/bold yellow]"
+        elif tier == "PYTORCH_MPS":
+            tier_badge = "[bold blue][MPS][/bold blue]"
+        elif tier == "STATIC_RULE_ENGINE":
+            tier_badge = "[bold white][L1 Engine][/bold white]"
+        else:
+            tier_badge = "[bold cyan][MLX-Native][/bold cyan]"
+
         table.add_row(
             str(rank),
+            tier_badge,
             res["model_name"],
             f"{res['accuracy']:.2%}",
             f"{res['precision']:.2%}",
@@ -379,14 +428,105 @@ def main() -> None:
     parser.add_argument("--ollama", action="store_true", help="Evaluate only Ollama Decision Models (d1, pplx-decider, mica)")
     parser.add_argument("--db", type=Path, default=DEFAULT_DB_PATH, help="Path to DuckDB database")
     parser.add_argument("--cascade", action="store_true", help="Wrap adapters in L1 Hybrid Cascade")
+    parser.add_argument("--experiment-id", type=str, default=None, help="Run a pre-configured experiment template from DuckDB (e.g. exp_smoke_dual_track)")
+    parser.add_argument("--list-experiments", action="store_true", help="List registered experiment templates in DuckDB")
 
     args = parser.parse_args()
 
-    if not args.dataset.exists():
-        console.print(f"[bold red]❌ Dataset file not found: {args.dataset}[/bold red]")
+    db_con = init_db(args.db)
+
+    # Handle template listing
+    if args.list_experiments:
+        templates = list_templates(db_con)
+        t_table = Table(title="📋 Registered Experiment Templates (DuckDB)", header_style="bold magenta", show_lines=True)
+        t_table.add_column("Template ID", style="bold yellow")
+        t_table.add_column("Name", style="bold cyan")
+        t_table.add_column("Dataset Path", style="white")
+        t_table.add_column("Models", justify="right")
+        t_table.add_column("Limit", justify="right")
+        for t in templates:
+            t_table.add_row(t.template_id, t.name, t.dataset_path, str(len(t.models_config)), str(t.limit_cases or "All"))
+        console.print(t_table)
+        db_con.close()
         return
 
-    db_con = init_db(args.db)
+    run_results = []
+
+    # Handle declarative execution from experiment template
+    if args.experiment_id:
+        template = get_template(args.experiment_id, db_con)
+        if not template:
+            console.print(f"[bold red]❌ Experiment template not found: {args.experiment_id}[/bold red]")
+            db_con.close()
+            return
+
+        dataset_path = Path(template.dataset_path)
+        if not dataset_path.is_absolute():
+            dataset_path = PROJECT_ROOT / dataset_path
+
+        if not dataset_path.exists():
+            console.print(f"[bold red]❌ Template dataset file not found: {dataset_path}[/bold red]")
+            db_con.close()
+            return
+
+        limit = args.limit or template.limit_cases
+        records = load_test_cases(dataset_path, limit=limit, smoke=False)
+
+        console.print(
+            Panel(
+                f"[bold green]Executing Declarative Experiment Template: {template.name}[/bold green]\n"
+                f"• Template ID: [yellow]{template.template_id}[/yellow]\n"
+                f"• Dataset: [white]{dataset_path.name} ({len(records)} test cases)[/white]\n"
+                f"• Models to Evaluate ({len(template.models_config)}): [cyan]{', '.join(m['model_id'] for m in template.models_config)}[/cyan]\n"
+                f"• Database: [white]{args.db}[/white]",
+                title="⚡ Farad Ai Declarative Matrix Studio",
+                border_style="magenta"
+            )
+        )
+
+        for model_spec in template.models_config:
+            model_key = model_spec["model_id"]
+            runtime_tier = model_spec.get("runtime_tier")
+            enable_cascade = model_spec.get("enable_l1_cascade", False)
+            thresholds = {
+                k: v for k, v in model_spec.items()
+                if k in ["threat_threshold", "exploit_threshold", "misalignment_threshold"]
+            }
+
+            try:
+                console.print(f"\n[bold]▶ Launching evaluation for:[/bold] [cyan]{model_key}[/cyan] ({runtime_tier or 'Auto'})")
+                res = evaluate_model_on_cases(
+                    model_key=model_key,
+                    records=records,
+                    dataset_name=dataset_path.stem,
+                    dataset_path=dataset_path,
+                    db_con=db_con,
+                    enable_cascade=enable_cascade,
+                    experiment_id=template.template_id,
+                    runtime_tier=runtime_tier,
+                    thresholds=thresholds,
+                )
+                run_results.append(res)
+                console.print(
+                    f"[green]✓ Completed {model_key}:[/green] "
+                    f"Accuracy={res['accuracy']:.1%}, F1={res['f1_score']:.1%}, "
+                    f"Latency={res['avg_latency_ms']:.1f}ms (Run ID: {res['run_id']})"
+                )
+            except Exception as e:  # noqa: BLE001
+                console.print(f"[bold red]❌ Error evaluating '{model_key}': {e}[/bold red]")
+            finally:
+                flush_unified_memory()
+
+        db_con.close()
+        if run_results:
+            render_leaderboard(run_results)
+        return
+
+    # Standard CLI execution flow
+    if not args.dataset.exists():
+        console.print(f"[bold red]❌ Dataset file not found: {args.dataset}[/bold red]")
+        db_con.close()
+        return
 
     # Determine models to evaluate
     if args.models:
@@ -414,7 +554,6 @@ def main() -> None:
         )
     )
 
-    run_results = []
     for model_key in target_models:
         try:
             console.print(f"\n[bold]▶ Launching evaluation for:[/bold] [cyan]{model_key}[/cyan]")

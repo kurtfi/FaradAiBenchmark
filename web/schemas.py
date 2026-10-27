@@ -25,6 +25,8 @@ class DatasetItem(BaseModel):
     size_mb: float = Field(0.0, description="File size on disk in megabytes")
     description: str = Field("", description="Summary of covered threat domains")
     source: str = Field("Parquet", description="Storage format or origin")
+    is_core: bool = Field(False, description="Whether this is a primary benchmark suite (Smoke, Train, Master)")
+    category: str = Field("domain", description="Dataset grouping: 'core' for benchmark suites, 'domain' for threat slices")
 
 
 class ModelItem(BaseModel):
@@ -37,6 +39,54 @@ class ModelItem(BaseModel):
     status: str = Field("available", description="Model availability status")
     quantization: str = Field("4-bit", description="Quantization profile (4-bit, fp16)")
     loaded: bool = Field(False, description="Whether weights are currently resident in memory")
+
+
+# ─── Experiment Templates & Matrix Studio ─────────────────────────────────────
+
+class ExperimentModelConfig(BaseModel):
+    """Configuration for an individual model within an experiment template."""
+    model_id: str = Field(..., description="Registered model adapter key (e.g. laya-mlx, ollama-d1)")
+    runtime_tier: Optional[str] = Field(None, description="Explicit runtime tier: MLX_NATIVE_METAL, OLLAMA_DAEMON_HTTP, PYTORCH_MPS, STATIC_RULE_ENGINE")
+    enable_l1_cascade: bool = Field(False, description="Enable L1 static regex cascade filter")
+    threat_threshold: Optional[float] = Field(None, description="Continuous probability threshold (MLX only)")
+    exploit_threshold: Optional[float] = Field(None, description="Exploit confidence threshold")
+    misalignment_threshold: Optional[float] = Field(None, description="Misalignment confidence threshold")
+
+
+class ExperimentTemplateItem(BaseModel):
+    """Declarative experiment matrix template stored in DuckDB."""
+    template_id: str = Field(..., description="Unique template identifier (slug)")
+    name: str = Field(..., description="Human-readable template name")
+    description: str = Field("", description="Detailed description of the benchmark matrix")
+    dataset_path: str = Field(..., description="Parquet dataset path or filename")
+    models_config: List[Dict[str, Any]] = Field(..., description="List of model evaluation specifications")
+    limit_cases: Optional[int] = Field(None, description="Maximum test cases to evaluate")
+    created_at: Optional[str] = Field(None, description="Creation timestamp")
+    updated_at: Optional[str] = Field(None, description="Last update timestamp")
+
+
+class ExperimentTemplateCreateRequest(BaseModel):
+    """Request payload to create or update an experiment template."""
+    template_id: str = Field(..., description="Unique slug for the experiment template")
+    name: str = Field(..., description="Human-readable template name")
+    description: Optional[str] = Field("", description="Detailed description")
+    dataset_path: str = Field(..., description="Parquet dataset path or relative filename")
+    models_config: List[Dict[str, Any]] = Field(..., description="List of model evaluation specifications")
+    limit_cases: Optional[int] = Field(None, description="Optional case limit")
+
+
+class ExperimentRunRequest(BaseModel):
+    """Request payload to trigger execution of an experiment matrix template."""
+    limit_cases: Optional[int] = Field(None, description="Optional override for limit_cases")
+    selected_models: Optional[List[str]] = Field(None, description="Optional subset of model_ids to run")
+
+
+class ExperimentRunResponse(BaseModel):
+    """Response returned upon launching an experiment matrix run."""
+    template_id: str
+    status: str = "started"
+    models_count: int
+    message: str = "Experiment matrix execution started in background"
 
 
 

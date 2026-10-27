@@ -14,6 +14,13 @@ const state = {
     runs: [],
     reconnectAttempts: 0,
     maxReconnect: 10,
+    matrix: {
+        templates: [],
+        activeTemplateId: 'exp_smoke_dual_track',
+        activeTemplate: null,
+        isRunning: false,
+        modelStatuses: {},
+    },
     testCases: {
         page: 1,
         limit: 50,
@@ -91,9 +98,29 @@ function handleWSMessage(msg) {
             break;
         case 'run_started':
             showToast(`Benchmark başlatıldı: ${msg.total_cases} test`, 'info');
+            resetLiveMetrics();
             break;
         case 'run_completed':
             handleRunCompleted(msg);
+            break;
+        case 'matrix_started':
+            handleMatrixStarted(msg);
+            break;
+        case 'matrix_model_started':
+            handleMatrixModelStarted(msg);
+            break;
+        case 'matrix_model_completed':
+            handleMatrixModelCompleted(msg);
+            break;
+        case 'matrix_model_error':
+            handleMatrixModelError(msg);
+            break;
+        case 'matrix_completed':
+            handleMatrixCompleted(msg);
+            break;
+        case 'matrix_error':
+            showToast(`Matris Hatası: ${msg.error}`, 'error');
+            resetMatrixRunState();
             break;
         case 'error':
             showToast(`Hata: ${msg.message}`, 'error');
@@ -128,11 +155,13 @@ function updateProgress(data) {
     setText('#progress-throughput', `${data.throughput}`);
     setText('#progress-elapsed', `${data.elapsed_secs}s`);
 
-    // Update live metrics
-    updateMetric('accuracy', data.accuracy, '%');
-    updateMetric('precision', data.precision, '%');
-    updateMetric('recall', data.recall, '%');
-    updateMetric('f1', data.f1, '%');
+    // Update live metrics (all 6 metrics real-time)
+    if (data.accuracy !== undefined) updateMetric('accuracy', data.accuracy, '%');
+    if (data.precision !== undefined) updateMetric('precision', data.precision, '%');
+    if (data.recall !== undefined) updateMetric('recall', data.recall, '%');
+    if (data.f1 !== undefined) updateMetric('f1', data.f1, '%');
+    if (data.fpr !== undefined) updateMetric('fpr', data.fpr, '%');
+    if (data.avg_latency_ms !== undefined) updateMetric('latency', data.avg_latency_ms, 'ms');
 
     // Update confusion matrix
     setText('#cm-tp', data.tp);
@@ -144,15 +173,53 @@ function updateProgress(data) {
 function updateMetric(id, value, suffix) {
     const el = $(`#metric-${id}`);
     if (!el) return;
+
+    if (value === null || value === undefined || isNaN(value)) {
+        el.textContent = '—';
+        el.className = 'metric-value neutral';
+        return;
+    }
+
     el.textContent = `${value}${suffix}`;
 
     // Color coding
     el.className = 'metric-value';
-    if (suffix === '%') {
+    if (id === 'fpr') {
+        if (value <= 3) el.classList.add('good');
+        else if (value <= 8) el.classList.add('warn');
+        else el.classList.add('bad');
+    } else if (suffix === '%') {
         if (value >= 85) el.classList.add('good');
         else if (value >= 60) el.classList.add('warn');
         else el.classList.add('bad');
+    } else {
+        el.classList.add('info');
     }
+}
+
+function resetLiveMetrics() {
+    ['accuracy', 'precision', 'recall', 'f1', 'fpr', 'latency'].forEach(id => {
+        const el = $(`#metric-${id}`);
+        if (el) {
+            el.textContent = '—';
+            el.className = id === 'latency' ? 'metric-value info' : 'metric-value neutral';
+        }
+    });
+    setText('#cm-tp', '0');
+    setText('#cm-tn', '0');
+    setText('#cm-fp', '0');
+    setText('#cm-fn', '0');
+    setText('#progress-pct', '0%');
+    setText('#progress-evaluated', '0/0');
+    setText('#progress-throughput', '0');
+    setText('#progress-elapsed', '0s');
+    const ring = $('#progress-ring-fill');
+    if (ring) {
+        const circumference = 2 * Math.PI * 90;
+        ring.style.strokeDashoffset = circumference;
+    }
+    const actions = $('#progress-complete-actions');
+    if (actions) actions.style.display = 'none';
 }
 
 function handleRunCompleted(data) {
@@ -193,8 +260,7 @@ function resetProgress() {
     if (idle) idle.style.display = 'flex';
     if (progress) progress.style.display = 'none';
 
-    const actions = $('#progress-complete-actions');
-    if (actions) actions.style.display = 'none';
+    resetLiveMetrics();
 
     const btn = $('#btn-start');
     if (btn) {
@@ -263,16 +329,8 @@ async function startBenchmark() {
     const actions = $('#progress-complete-actions');
     if (actions) actions.style.display = 'none';
 
-    // Reset progress display
-    updateProgress({
-        pct: 0, evaluated: 0, total: 0,
-        throughput: 0, elapsed_secs: 0,
-        accuracy: 0, precision: 0, recall: 0, f1: 0,
-    });
-    setText('#cm-tp', 0);
-    setText('#cm-tn', 0);
-    setText('#cm-fp', 0);
-    setText('#cm-fn', 0);
+    // Reset progress display & all live metrics to initial clean state
+    resetLiveMetrics();
 
     try {
         const res = await fetch('/api/runs', {
@@ -356,10 +414,10 @@ function updateTierDescription() {
     if (!descEl) return;
 
     if (tier === 'static') {
-        const cnt = ds ? (ds.static_rows || 0).toLocaleString() : '811';
+        const cnt = ds ? (ds.static_rows || 0).toLocaleString() : '1,000';
         descEl.textContent = `⚡ Statik Kapsam: Yalnızca mikrosaniyelik regex/DLP ile tespit edilebilir kurallar (${cnt} vaka - STATIC_CAPABLE).`;
     } else if (tier === 'semantic') {
-        const cnt = ds ? (ds.semantic_rows || 0).toLocaleString() : '1,189';
+        const cnt = ds ? (ds.semantic_rows || 0).toLocaleString() : '1,000';
         descEl.textContent = `🧠 Semantik Kapsam: L2 derin anlamsal analiz gerektiren karmaşık senaryolar (${cnt} vaka - SEMANTIC_REQUIRED).`;
     } else {
         const cnt = ds ? (ds.rows || 0).toLocaleString() : '2,000';
@@ -421,21 +479,43 @@ function renderDatasetSelect() {
     const select = $('#dataset-select');
     if (!select) return;
     select.innerHTML = '<option value="">Dataset seçin...</option>';
-    state.datasets.forEach(ds => {
-        const opt = document.createElement('option');
-        opt.value = ds.id;
-        opt.textContent = `${ds.name} (${ds.rows.toLocaleString()} rows, ${ds.size_kb} KB)`;
-        select.appendChild(opt);
-    });
 
-    if (state.datasets.length > 0) {
-        select.value = state.datasets[0].id;
-        const ds = state.datasets[0];
+    const coreDatasets = state.datasets.filter(d => d.is_core);
+    const domainDatasets = state.datasets.filter(d => !d.is_core);
+
+    if (coreDatasets.length > 0) {
+        const coreGroup = document.createElement('optgroup');
+        coreGroup.label = '🌟 Ana Benchmark Veri Kümeleri';
+        coreDatasets.forEach(ds => {
+            const opt = document.createElement('option');
+            opt.value = ds.id;
+            opt.textContent = `${ds.name} (${ds.rows.toLocaleString()} rows, ${ds.size_kb} KB)`;
+            coreGroup.appendChild(opt);
+        });
+        select.appendChild(coreGroup);
+    }
+
+    if (domainDatasets.length > 0) {
+        const domainGroup = document.createElement('optgroup');
+        domainGroup.label = '🔬 Özel Tehdit & Zafiyet Kümeleri';
+        domainDatasets.forEach(ds => {
+            const opt = document.createElement('option');
+            opt.value = ds.id;
+            opt.textContent = `${ds.name} (${ds.rows.toLocaleString()} rows, ${ds.size_kb} KB)`;
+            domainGroup.appendChild(opt);
+        });
+        select.appendChild(domainGroup);
+    }
+
+    // Default to Smoke Test 2K as requested, fallback to first dataset
+    const smokeDs = state.datasets.find(d => d.id === 'smoke_test_2k') || state.datasets[0];
+    if (smokeDs) {
+        select.value = smokeDs.id;
         const hint = $('#dataset-hint');
         if (hint) {
-            hint.textContent = `${ds.rows.toLocaleString()} satır · ${ds.size_kb} KB · ${ds.filename}`;
+            hint.textContent = `${smokeDs.rows.toLocaleString()} satır · ${smokeDs.size_kb} KB · ${smokeDs.filename}`;
         }
-        updateTierCounts(ds);
+        updateTierCounts(smokeDs);
     }
 }
 
@@ -1186,6 +1266,8 @@ function switchPage(page, updateHash = true) {
         loadRuns().then(() => populateCompareSelects());
     } else if (page === 'test-cases') {
         initTestCasesPage();
+    } else if (page === 'matrix') {
+        loadExperimentTemplates();
     }
 
     if (updateHash) {
@@ -1854,7 +1936,7 @@ async function handleHashNavigation() {
         const { page, params } = parseHash();
         let targetPage = page;
         if (targetPage === 'benchmark') targetPage = 'dashboard';
-        const validPages = ['dashboard', 'compare', 'test-cases', 'history'];
+        const validPages = ['dashboard', 'matrix', 'compare', 'test-cases', 'history'];
         if (!validPages.includes(targetPage)) {
             targetPage = 'dashboard';
         }
@@ -1899,6 +1981,8 @@ async function handleHashNavigation() {
                 loadRuns();
             } else if (targetPage === 'compare') {
                 loadRuns().then(() => populateCompareSelects());
+            } else if (targetPage === 'matrix') {
+                loadExperimentTemplates();
             }
             closeCaseDetail(false);
         }
@@ -2046,3 +2130,386 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 30000);
 });
+
+// ─── Declarative Matrix Studio (ADR 0010) ──────────────────────────────────
+
+function getRuntimeTierBadge(tier) {
+    const t = (tier || 'UNKNOWN').toUpperCase();
+    if (t.includes('MLX') || t.includes('METAL')) {
+        return '<span class="badge" style="background: rgba(147, 51, 234, 0.15); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3);">[MLX-Native Metal]</span>';
+    }
+    if (t.includes('OLLAMA')) {
+        return '<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">[Ollama-Daemon]</span>';
+    }
+    if (t.includes('MPS')) {
+        return '<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">[PyTorch MPS]</span>';
+    }
+    if (t.includes('STATIC') || t.includes('RULE')) {
+        return '<span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);">[L1 Static]</span>';
+    }
+    return `<span class="badge badge-pending">[${escapeHtml(tier || 'Auto')}]</span>`;
+}
+
+async function loadExperimentTemplates() {
+    try {
+        const res = await fetch('/api/experiments');
+        if (!res.ok) throw new Error('Failed to fetch experiment templates');
+        const templates = await res.json();
+        state.matrix.templates = templates;
+
+        const select = $('#matrix-template-select');
+        if (!select) return;
+
+        select.innerHTML = '';
+        if (templates.length === 0) {
+            select.innerHTML = '<option value="">Hiç şablon bulunamadı</option>';
+            return;
+        }
+
+        templates.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.template_id;
+            opt.textContent = `${t.name} (${t.template_id})`;
+            select.appendChild(opt);
+        });
+
+        // Default to exp_smoke_dual_track if present
+        const hasSmoke = templates.some(t => t.template_id === 'exp_smoke_dual_track');
+        if (hasSmoke && (!state.matrix.activeTemplateId || state.matrix.activeTemplateId === 'exp_smoke_dual_track')) {
+            state.matrix.activeTemplateId = 'exp_smoke_dual_track';
+            select.value = 'exp_smoke_dual_track';
+        } else if (templates.length > 0) {
+            state.matrix.activeTemplateId = select.value;
+        }
+
+        renderActiveMatrixTemplate();
+    } catch (e) {
+        console.error('[Matrix] Failed to load templates:', e);
+        showToast('Şablonlar yüklenemedi: ' + e.message, 'error');
+    }
+}
+
+function onMatrixTemplateChanged() {
+    const select = $('#matrix-template-select');
+    if (!select) return;
+    state.matrix.activeTemplateId = select.value;
+    state.matrix.modelStatuses = {};
+    renderActiveMatrixTemplate();
+}
+
+function renderActiveMatrixTemplate() {
+    const template = (state.matrix.templates || []).find(t => t.template_id === state.matrix.activeTemplateId);
+    state.matrix.activeTemplate = template;
+
+    const delBtn = $('#btn-delete-template');
+    if (delBtn) {
+        delBtn.style.display = (template && template.template_id !== 'exp_smoke_dual_track') ? 'inline-block' : 'none';
+    }
+
+    if (!template) {
+        setText('#matrix-tpl-name', 'Şablon bulunamadı');
+        setText('#matrix-tpl-id', '—');
+        setText('#matrix-tpl-desc', 'Lütfen geçerli bir test şablonu seçin.');
+        setText('#matrix-tpl-dataset', '—');
+        setText('#matrix-tpl-limit', '—');
+        setText('#matrix-model-count', '0 Model');
+        const tbody = $('#matrix-models-tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Şablon seçiniz...</td></tr>';
+        return;
+    }
+
+    setText('#matrix-tpl-name', template.name);
+    setText('#matrix-tpl-id', template.template_id);
+    setText('#matrix-tpl-desc', template.description || 'Açıklama belirtilmemiş.');
+    setText('#matrix-tpl-dataset', template.dataset_path);
+    setText('#matrix-tpl-limit', template.limit_cases ? `${template.limit_cases.toLocaleString()} vaka` : 'Tüm vaka havuzu');
+    setText('#matrix-model-count', `${(template.models_config || []).length} Model`);
+
+    const tbody = $('#matrix-models-tbody');
+    if (!tbody) return;
+
+    if (!template.models_config || template.models_config.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Bu şablonda model yapılandırılmamış.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = template.models_config.map((m) => {
+        const modelId = m.model_id;
+        const tierBadge = getRuntimeTierBadge(m.runtime_tier);
+        const cascadeHtml = m.enable_l1_cascade
+            ? '<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #34d399;">⚡ L1 Fail-Fast Aktif</span>'
+            : '<span class="text-xs text-muted">Saf Model</span>';
+
+        const thresholdParts = [];
+        if (m.threat_threshold !== undefined && m.threat_threshold !== null) {
+            thresholdParts.push(`Threat: ${m.threat_threshold}`);
+        }
+        if (m.exploit_threshold !== undefined && m.exploit_threshold !== null) {
+            thresholdParts.push(`Exploit: ${m.exploit_threshold}`);
+        }
+        if (m.misalignment_threshold !== undefined && m.misalignment_threshold !== null) {
+            thresholdParts.push(`Misalign: ${m.misalignment_threshold}`);
+        }
+        const thresholdsHtml = thresholdParts.length > 0
+            ? `<span class="mono text-xs">${thresholdParts.join(', ')}</span>`
+            : '<span class="text-xs text-muted">—</span>';
+
+        const status = state.matrix.modelStatuses[modelId] || '<span class="badge badge-pending">Beklemede</span>';
+
+        return `
+            <tr id="matrix-row-${escapeHtml(modelId)}">
+                <td>
+                    <div class="font-bold mono text-sm" style="color: var(--text-primary);">${escapeHtml(modelId)}</div>
+                </td>
+                <td>${tierBadge}</td>
+                <td>${cascadeHtml}</td>
+                <td>${thresholdsHtml}</td>
+                <td id="matrix-status-${escapeHtml(modelId)}">${status}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function runCurrentMatrixTemplate() {
+    const templateId = state.matrix.activeTemplateId;
+    if (!templateId) {
+        showToast('Lütfen bir matris şablonu seçin', 'error');
+        return;
+    }
+
+    const limitInput = $('#matrix-override-limit');
+    const limitVal = limitInput && limitInput.value.trim() ? parseInt(limitInput.value.trim(), 10) : null;
+
+    const payload = {};
+    if (limitVal && limitVal > 0) {
+        payload.limit_cases = limitVal;
+    }
+
+    const btn = $('#btn-run-matrix');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="inline-spinner" style="width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;display:inline-block;vertical-align:middle;margin-right:6px;"></span> Başlatılıyor...';
+    }
+
+    try {
+        const res = await fetch(`/api/experiments/${encodeURIComponent(templateId)}/run`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Matris başlatılamadı');
+        }
+
+        const data = await res.json();
+        showToast(`⚡ ${data.message}`, 'info');
+    } catch (e) {
+        showToast('Hata: ' + e.message, 'error');
+        resetMatrixRunState();
+    }
+}
+
+async function deleteCurrentMatrixTemplate() {
+    const templateId = state.matrix.activeTemplateId;
+    if (!templateId || templateId === 'exp_smoke_dual_track') return;
+
+    if (!confirm(`"${templateId}" şablonunu silmek istediğinizden emin misiniz?`)) return;
+
+    try {
+        const res = await fetch(`/api/experiments/${encodeURIComponent(templateId)}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Silme işlemi başarısız');
+        showToast(`Şablon "${templateId}" silindi`, 'info');
+        state.matrix.activeTemplateId = 'exp_smoke_dual_track';
+        await loadExperimentTemplates();
+    } catch (e) {
+        showToast('Hata: ' + e.message, 'error');
+    }
+}
+
+function handleMatrixStarted(msg) {
+    state.matrix.isRunning = true;
+    const banner = $('#matrix-live-status-banner');
+    if (banner) banner.style.display = 'block';
+
+    setText('#matrix-live-status-text', `Matris çalışıyor: ${msg.template_name || msg.template_id}`);
+    setText('#matrix-live-progress-badge', `0 / ${msg.total_models}`);
+
+    const btn = $('#btn-run-matrix');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Matris Çalışıyor...';
+    }
+
+    state.matrix.modelStatuses = {};
+    if (state.matrix.activeTemplate && state.matrix.activeTemplate.models_config) {
+        state.matrix.activeTemplate.models_config.forEach(m => {
+            state.matrix.modelStatuses[m.model_id] = '<span class="badge badge-pending">◌ Beklemede</span>';
+            const cell = $(`#matrix-status-${m.model_id}`);
+            if (cell) cell.innerHTML = '<span class="badge badge-pending">◌ Beklemede</span>';
+        });
+    }
+}
+
+function handleMatrixModelStarted(msg) {
+    const cell = $(`#matrix-status-${msg.model_id}`);
+    const badge = `<span class="badge badge-running">⟳ Değerlendiriliyor (${escapeHtml(msg.runtime_tier)})</span>`;
+    state.matrix.modelStatuses[msg.model_id] = badge;
+    if (cell) cell.innerHTML = badge;
+
+    setText('#matrix-live-status-text', `Değerlendiriliyor: ${msg.model_id} (${msg.runtime_tier})`);
+}
+
+function handleMatrixModelCompleted(msg) {
+    const cell = $(`#matrix-status-${msg.model_id}`);
+    const badge = `<span class="badge badge-completed">✓ Acc: ${msg.accuracy}% · F1: ${msg.f1_score}% · ${msg.avg_latency_ms}ms</span>`;
+    state.matrix.modelStatuses[msg.model_id] = badge;
+    if (cell) cell.innerHTML = badge;
+}
+
+function handleMatrixModelError(msg) {
+    const cell = $(`#matrix-status-${msg.model_id}`);
+    const badge = `<span class="badge badge-error" title="${escapeHtml(msg.error)}">✕ Hata</span>`;
+    state.matrix.modelStatuses[msg.model_id] = badge;
+    if (cell) cell.innerHTML = badge;
+}
+
+function handleMatrixCompleted(msg) {
+    showToast(`✅ Matris tamamlandı! (${msg.completed_count}/${msg.total_count} model)`, 'success');
+    setText('#matrix-live-status-text', `✓ Tamamlandı: ${msg.completed_count} model başarıyla değerlendirildi`);
+    setText('#matrix-live-progress-badge', `${msg.completed_count} / ${msg.total_count}`);
+
+    setTimeout(() => {
+        const banner = $('#matrix-live-status-banner');
+        if (banner) banner.style.display = 'none';
+    }, 4000);
+
+    resetMatrixRunState();
+    loadRuns();
+}
+
+function resetMatrixRunState() {
+    state.matrix.isRunning = false;
+    const btn = $('#btn-run-matrix');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '⚡ Matrisi Başlat';
+    }
+}
+
+function openNewTemplateModal() {
+    const modal = $('#new-template-modal');
+    if (!modal) return;
+
+    // Populate model checkboxes
+    const container = $('#tpl-create-models-list');
+    if (container) {
+        const available = state.models || [];
+        container.innerHTML = available.map(m => `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem;">
+                    <input type="checkbox" class="tpl-model-check" value="${escapeHtml(m.id)}" ${m.id === 'laya-mlx' || m.id === 'ollama-d1' ? 'checked' : ''}>
+                    <span>${m.icon || '🛡️'} <strong>${escapeHtml(m.name)}</strong> <span class="mono text-xs text-muted">(${escapeHtml(m.id)})</span></span>
+                </label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <select class="form-select tpl-model-tier" data-model="${escapeHtml(m.id)}" style="font-size: 0.75rem; padding: 2px 6px; width: auto;">
+                        <option value="AUTO">Auto Tier</option>
+                        <option value="MLX_NATIVE_METAL">MLX Native Metal</option>
+                        <option value="OLLAMA_DAEMON_HTTP">Ollama Daemon</option>
+                        <option value="PYTORCH_MPS">PyTorch MPS</option>
+                    </select>
+                    <label style="font-size: 0.75rem; display: flex; align-items: center; gap: 4px; cursor: pointer;" title="L1 Static Regex Cascade">
+                        <input type="checkbox" class="tpl-model-cascade" data-model="${escapeHtml(m.id)}" checked>
+                        <span>L1</span>
+                    </label>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    modal.classList.add('open');
+}
+
+function closeNewTemplateModal() {
+    const modal = $('#new-template-modal');
+    if (modal) modal.classList.remove('open');
+}
+
+async function submitCreateTemplate() {
+    const idInput = $('#tpl-create-id');
+    const nameInput = $('#tpl-create-name');
+    const descInput = $('#tpl-create-desc');
+    const datasetSelect = $('#tpl-create-dataset');
+    const limitInput = $('#tpl-create-limit');
+
+    const templateId = idInput ? idInput.value.trim() : '';
+    const name = nameInput ? nameInput.value.trim() : '';
+    const desc = descInput ? descInput.value.trim() : '';
+    const datasetPath = datasetSelect ? datasetSelect.value.trim() : '';
+    const limitCases = limitInput && limitInput.value ? parseInt(limitInput.value, 10) : null;
+
+    if (!templateId) {
+        showToast('Lütfen şablon kimliği (slug) girin', 'error');
+        return;
+    }
+    if (!name) {
+        showToast('Lütfen şablon başlığı girin', 'error');
+        return;
+    }
+
+    // Collect checked models
+    const selectedModels = [];
+    const checkboxes = document.querySelectorAll('.tpl-model-check:checked');
+    checkboxes.forEach(cb => {
+        const modelId = cb.value;
+        const tierSelect = document.querySelector(`.tpl-model-tier[data-model="${modelId}"]`);
+        const cascadeCheck = document.querySelector(`.tpl-model-cascade[data-model="${modelId}"]`);
+
+        const tierVal = tierSelect ? tierSelect.value : 'AUTO';
+        const enableCascade = cascadeCheck ? cascadeCheck.checked : false;
+
+        const spec = {
+            model_id: modelId,
+            enable_l1_cascade: enableCascade,
+        };
+        if (tierVal && tierVal !== 'AUTO') {
+            spec.runtime_tier = tierVal;
+        }
+        selectedModels.push(spec);
+    });
+
+    if (selectedModels.length === 0) {
+        showToast('En az bir model seçmelisiniz', 'error');
+        return;
+    }
+
+    const payload = {
+        template_id: templateId,
+        name: name,
+        description: desc,
+        dataset_path: datasetPath,
+        models_config: selectedModels,
+        limit_cases: limitCases,
+    };
+
+    try {
+        const res = await fetch('/api/experiments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Şablon oluşturulamadı');
+        }
+
+        showToast(`✅ Şablon "${name}" başarıyla oluşturuldu`, 'success');
+        closeNewTemplateModal();
+        state.matrix.activeTemplateId = templateId;
+        await loadExperimentTemplates();
+    } catch (e) {
+        showToast('Hata: ' + e.message, 'error');
+    }
+}

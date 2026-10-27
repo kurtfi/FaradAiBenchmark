@@ -12,6 +12,19 @@ from adapters.ollama_decision_adapter import (
     OllamaMicaAdapter,
     OllamaPerplexityDeciderAdapter,
 )
+from adapters.ollama_guard_adapter import (
+    OllamaGuardAdapter,
+    OllamaLlamaGuardAdapter,
+    OllamaGraniteGuardianAdapter,
+)
+from adapters.experiment_registry import (
+    ExperimentTemplate,
+    init_experiment_registry,
+    get_template,
+    list_templates,
+    save_template,
+    delete_template,
+)
 from adapters.prompt_guard_adapter import PromptGuardAdapter
 from adapters.qwen_guard_adapter import Qwen3GuardAdapter, QwenGuardAdapter
 from adapters.shield_gemma_adapter import ShieldGemmaAdapter

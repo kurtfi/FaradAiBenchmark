@@ -19,6 +19,7 @@
 
     <nav class="nav">
         <button class="nav-btn active" data-page="dashboard">Dashboard</button>
+        <button class="nav-btn" data-page="matrix">⚡ Matrix Studio</button>
         <button class="nav-btn" data-page="compare">⚖️ Compare Runs</button>
         <button class="nav-btn" data-page="test-cases">🔍 Test Cases</button>
         <button class="nav-btn" data-page="history">History</button>
@@ -245,6 +246,101 @@
                         <tr><td colspan="9" class="empty-state">Loading...</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Matrix Studio Page ────────────────────────────────── -->
+    <div class="page" id="page-matrix">
+        <div class="page-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); margin-bottom: var(--space-6);">
+            <div>
+                <h1 class="page-title">⚡ Declarative Matrix Studio</h1>
+                <p class="page-subtitle">DuckDB-tabanlı çoklu model test matrislerini yönetin, Apple Silicon (MLX) ve Ollama modellerini deklaratif olarak karşılaştırın.</p>
+            </div>
+            <button class="btn btn-secondary" onclick="openNewTemplateModal()">
+                ➕ Yeni Şablon Oluştur
+            </button>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- LEFT: Template Selector & Configuration Card -->
+            <div class="card">
+                <div class="card-title"><span class="icon">📋</span> Test Matrisi Şablonu</div>
+
+                <div class="form-group">
+                    <label class="form-label" for="matrix-template-select">Kayıtlı Şablon Seçin</label>
+                    <div style="display: flex; gap: var(--space-2);">
+                        <select class="form-select" id="matrix-template-select" onchange="onMatrixTemplateChanged()" style="flex: 1;">
+                            <option value="">Şablonlar yükleniyor...</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" onclick="loadExperimentTemplates()" title="Yenile">🔄</button>
+                    </div>
+                </div>
+
+                <!-- Template Details Summary -->
+                <div id="matrix-template-info" style="margin-bottom: var(--space-5); padding: var(--space-4); background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-2);">
+                        <div class="font-bold text-base" id="matrix-tpl-name">—</div>
+                        <span class="badge badge-pending mono text-xs" id="matrix-tpl-id">—</span>
+                    </div>
+                    <div class="text-xs text-muted" id="matrix-tpl-desc" style="margin-bottom: var(--space-3);">—</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); font-size: 0.8rem;">
+                        <div><span class="text-muted">Dataset:</span> <span class="mono text-xs" id="matrix-tpl-dataset" style="word-break: break-all;">—</span></div>
+                        <div><span class="text-muted">Vaka Limiti:</span> <span class="font-semibold" id="matrix-tpl-limit">—</span></div>
+                    </div>
+                </div>
+
+                <!-- Execution Controls -->
+                <div class="form-group">
+                    <label class="form-label" for="matrix-override-limit">Vaka Limiti Geçersiz Kıl (Opsiyonel)</label>
+                    <input type="number" id="matrix-override-limit" class="form-input" placeholder="Şablon varsayılanını kullan (boş bırakın)" min="1" max="15000">
+                </div>
+
+                <div style="display: flex; gap: var(--space-3); margin-top: var(--space-4);">
+                    <button class="btn btn-primary" id="btn-run-matrix" onclick="runCurrentMatrixTemplate()" style="flex: 1;">
+                        ⚡ Matrisi Başlat
+                    </button>
+                    <button class="btn btn-danger btn-sm" id="btn-delete-template" onclick="deleteCurrentMatrixTemplate()" title="Şablonu Sil" style="display: none;">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+
+            <!-- RIGHT: Models Matrix Breakdown & Live Execution Status -->
+            <div class="card">
+                <div class="card-title" style="display: flex; align-items: center; justify-content: space-between;">
+                    <span><span class="icon">🔬</span> Modeller ve Çalışma Seviyeleri (Dual-Track)</span>
+                    <span class="badge badge-info" id="matrix-model-count">0 Model</span>
+                </div>
+
+                <!-- Matrix Active Status Banner (hidden when idle) -->
+                <div id="matrix-live-status-banner" style="display: none; margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4); background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md);">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: var(--space-3);">
+                            <span class="inline-spinner" style="width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block;"></span>
+                            <span class="font-semibold text-sm" id="matrix-live-status-text">Matris çalışıyor...</span>
+                        </div>
+                        <span class="mono text-xs text-muted" id="matrix-live-progress-badge">0 / 0</span>
+                    </div>
+                </div>
+
+                <!-- Models Table in Template -->
+                <div class="table-container" style="max-height: 480px; overflow-y: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Model Adapter</th>
+                                <th>Runtime Tier</th>
+                                <th>L1 Cascade</th>
+                                <th>Thresholds</th>
+                                <th>Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matrix-models-tbody">
+                            <tr><td colspan="5" class="empty-state">Şablon seçiniz...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -616,6 +712,57 @@
 <!-- ═══════════════ Case Detail Drawer & Overlay ═══════════════ -->
 <div class="drawer-overlay" id="drawer-overlay" onclick="closeCaseDetail()"></div>
 <div class="case-detail-drawer" id="case-detail-drawer"></div>
+
+<!-- ═══════════════ Create Experiment Template Modal ═══════════════ -->
+<div class="modal-overlay" id="new-template-modal">
+    <div class="modal" style="max-width: 650px;">
+        <div class="modal-header">
+            <div class="modal-title">➕ Yeni Test Matrisi Şablonu Oluştur</div>
+            <button class="modal-close" onclick="closeNewTemplateModal()">✕</button>
+        </div>
+        <div class="modal-section" style="padding-top: var(--space-2);">
+            <div class="form-group">
+                <label class="form-label" for="tpl-create-id">Şablon Kimliği (Slug / ID) *</label>
+                <input type="text" id="tpl-create-id" class="form-input mono" placeholder="exp_custom_eval_matrix" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="tpl-create-name">Şablon Başlığı *</label>
+                <input type="text" id="tpl-create-name" class="form-input" placeholder="Örn: Dual-Track Custom Evaluation" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="tpl-create-desc">Açıklama</label>
+                <input type="text" id="tpl-create-desc" class="form-input" placeholder="Deneyin amacı, hedefi ve model kapsamı...">
+            </div>
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-3);">
+                <div class="form-group">
+                    <label class="form-label" for="tpl-create-dataset">Hedef Veri Kümesi (Parquet) *</label>
+                    <select id="tpl-create-dataset" class="form-select">
+                        <option value="data/processed/smoke_test_2k.parquet" selected>⚡ Smoke Test 2K (2,000 cases - Default Eval)</option>
+                        <option value="data/processed/benchmark_train.parquet">🏋️ Benchmark Train (12,436 cases - Training Set)</option>
+                        <option value="data/processed/master_benchmark.parquet">🎯 Master Benchmark (14,436 cases - Full Pool)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="tpl-create-limit">Vaka Limiti</label>
+                    <input type="number" id="tpl-create-limit" class="form-input" placeholder="200" value="200" min="1">
+                </div>
+            </div>
+
+            <!-- Model Selection Checkboxes -->
+            <div class="form-group">
+                <label class="form-label">Değerlendirilecek Modeller *</label>
+                <div id="tpl-create-models-list" style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--space-2); background: rgba(0,0,0,0.2);">
+                    <!-- Dynamically populated checkboxes -->
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-4);">
+                <button class="btn btn-secondary" onclick="closeNewTemplateModal()">İptal</button>
+                <button class="btn btn-primary" onclick="submitCreateTemplate()">Kaydet ve Ekle</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script src="/static/app.js"></script>
 </body>

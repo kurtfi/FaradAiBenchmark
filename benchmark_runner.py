@@ -34,6 +34,11 @@ from adapters.ollama_decision_adapter import (
     OllamaMicaAdapter,
     OllamaPerplexityDeciderAdapter,
 )
+from adapters.ollama_guard_adapter import (
+    OllamaGuardAdapter,
+    OllamaLlamaGuardAdapter,
+    OllamaGraniteGuardianAdapter,
+)
 from adapters.prompt_guard_adapter import PromptGuardAdapter
 from adapters.qwen_guard_adapter import Qwen3GuardAdapter
 from adapters.shield_gemma_adapter import ShieldGemmaAdapter
@@ -242,6 +247,10 @@ ADAPTER_REGISTRY: Dict[str, type] = {
     "ollama-mica": OllamaMicaAdapter,
     "mica-v0.5": OllamaMicaAdapter,
     "mica": OllamaMicaAdapter,
+    "ollama-llama-guard3": OllamaLlamaGuardAdapter,
+    "ollama-llama-guard": OllamaLlamaGuardAdapter,
+    "ollama-granite-guardian": OllamaGraniteGuardianAdapter,
+    "ollama-granite": OllamaGraniteGuardianAdapter,
     "mock": MockSecurityAdapter
 }
 
