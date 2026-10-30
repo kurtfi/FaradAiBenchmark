@@ -92,6 +92,34 @@ DATASET_REGISTRY: dict[str, dict[str, Any]] = {
         "url": "https://github.com/luoji12103/MCP-Tox.git",
         "target_dir": "mcptox",
         "description": "Tool poisoning and prompt injection benchmark for Model Context Protocol."
+    },
+    "agentharm": {
+        "name": "AgentHarm (Harmful Multi-Step Agent Tasks)",
+        "type": "git",
+        "url": "https://huggingface.co/datasets/ai-safety-institute/AgentHarm.git",
+        "target_dir": "agentharm",
+        "description": "UK AI Safety Institute & Gray Swan AI multi-step agent safety benchmark (440 attacks + 110 benign)."
+    },
+    "cyberseceval": {
+        "name": "CyberSecEval (Meta Purple Llama Agent & Code Security)",
+        "type": "git",
+        "url": "https://github.com/facebookresearch/PurpleLlama.git",
+        "target_dir": "cyberseceval",
+        "description": "Meta benchmark for code interpreter abuse, unauthorized system calls, and tool exploitation."
+    },
+    "agent-injection-bench": {
+        "name": "Agent-Injection-Bench (Channel-based Prompt Injection)",
+        "type": "git",
+        "url": "https://github.com/sentinelden/agent-injection-bench.git",
+        "target_dir": "agent-injection-bench",
+        "description": "Indirect prompt injection arriving via tool results, calendar, email, and web channels."
+    },
+    "safetoolbench": {
+        "name": "SafeToolBench (Pre-Execution Tool Utilization Safety)",
+        "type": "git",
+        "url": "https://github.com/BITHLP/SafeToolBench.git",
+        "target_dir": "safetoolbench",
+        "description": "EMNLP benchmark evaluating tool execution risk and unauthorized system actions."
     }
 }
 

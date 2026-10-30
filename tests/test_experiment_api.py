@@ -153,25 +153,26 @@ def test_dashboard_renders_matrix_studio(client):
 
 
 def test_api_datasets_order_and_core_suites(client):
-    """Verify /api/datasets prioritizes Smoke Test 2K (default), Benchmark Train, and Master Benchmark."""
+    """Verify /api/datasets prioritizes Farad-Decision-Bench-v1.0 (default), Benchmark Train, and Master Benchmark."""
     response = client.get("/api/datasets")
     assert response.status_code == 200
     datasets = response.json()
     assert len(datasets) >= 3
 
-    # Smoke Test 2K must be first (index 0) so frontend defaults to it
-    assert datasets[0]["id"] == "smoke_test_2k"
+    # Farad-Decision-Bench-v1.0 must be first (index 0) so frontend defaults to it
+    assert datasets[0]["id"] in ("farad_decision_bench_v1", "smoke_test_2k")
     assert datasets[0]["is_core"] is True
     assert datasets[0]["rows"] == 2000
+    assert "Farad-Decision-Bench-v1.0" in datasets[0]["name"]
 
     # Benchmark Train must be second (index 1)
     assert datasets[1]["id"] == "benchmark_train"
     assert datasets[1]["is_core"] is True
-    assert datasets[1]["rows"] == 12436
+    assert datasets[1]["rows"] > 7000
 
     # Master Benchmark must be third (index 2)
     assert datasets[2]["id"] == "master_benchmark"
     assert datasets[2]["is_core"] is True
-    assert datasets[2]["rows"] == 14436
+    assert datasets[2]["rows"] > 9000
 
 

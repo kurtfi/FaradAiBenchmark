@@ -507,15 +507,15 @@ function renderDatasetSelect() {
         select.appendChild(domainGroup);
     }
 
-    // Default to Smoke Test 2K as requested, fallback to first dataset
-    const smokeDs = state.datasets.find(d => d.id === 'smoke_test_2k') || state.datasets[0];
-    if (smokeDs) {
-        select.value = smokeDs.id;
+    // Default to Farad-Decision-Bench-v1.0 (or legacy smoke_test_2k), fallback to first dataset
+    const coreDs = state.datasets.find(d => d.id === 'farad_decision_bench_v1' || d.id === 'smoke_test_2k') || state.datasets[0];
+    if (coreDs) {
+        select.value = coreDs.id;
         const hint = $('#dataset-hint');
         if (hint) {
-            hint.textContent = `${smokeDs.rows.toLocaleString()} satır · ${smokeDs.size_kb} KB · ${smokeDs.filename}`;
+            hint.textContent = `${coreDs.rows.toLocaleString()} satır · ${coreDs.size_kb} KB · ${coreDs.filename}`;
         }
-        updateTierCounts(smokeDs);
+        updateTierCounts(coreDs);
     }
 }
 

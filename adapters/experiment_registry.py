@@ -126,11 +126,14 @@ def init_experiment_registry(db_target: Path | str | duckdb.DuckDBPyConnection =
                     "enable_l1_cascade": True,
                 },
             ]
+            default_dataset = "data/processed/farad_decision_bench_v1.parquet"
+            if not Path(default_dataset).exists() and Path("data/processed/smoke_test_2k.parquet").exists():
+                default_dataset = "data/processed/smoke_test_2k.parquet"
             seed_template = ExperimentTemplate(
                 template_id=DEFAULT_SEED_TEMPLATE_ID,
-                name="Dual-Track Smoke Evaluation (200 cases)",
-                description="Balanced smoke benchmark comparing Laya MLX (Metal), Liquid d1 (Ollama Decision), and Llama Guard 3 (Ollama Guard)",
-                dataset_path="data/processed/smoke_test_2k.parquet",
+                name="Dual-Track Evaluation (200 cases)",
+                description="Balanced benchmark comparing Laya MLX (Metal), Liquid d1 (Ollama Decision), and Llama Guard 3 (Ollama Guard)",
+                dataset_path=default_dataset,
                 models_config=seed_models,
                 limit_cases=200,
             )

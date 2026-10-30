@@ -79,7 +79,7 @@ def create_sample(sample_size: int, output_file: str, balanced: bool = True):
 def main():
     parser = argparse.ArgumentParser(description="DuckDB Parquet Sampler & Inspector.")
     parser.add_argument("--size", type=int, default=2000, help="Target sample size (default: 2000).")
-    parser.add_argument("--out", type=str, default="smoke_test_2k.parquet", help="Output parquet filename.")
+    parser.add_argument("--out", type=str, default="farad_decision_bench_v1.parquet", help="Output parquet filename (default: farad_decision_bench_v1.parquet).")
     parser.add_argument("--stats", action="store_true", help="Inspect dataset distribution and statistics.")
     parser.add_argument("--unbalanced", action="store_true", help="Disable 50/50 malicious/benign balancing.")
     args = parser.parse_args()
